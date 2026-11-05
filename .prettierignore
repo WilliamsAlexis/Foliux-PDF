@@ -1,0 +1,8 @@
+node_modules
+out
+dist
+coverage
+playwright-report
+test-results
+apps/desktop/renderer/public/pdfjs
+package-lock.json

@@ -1,0 +1,41 @@
+# Configuración del instalador (electron-builder)
+appId: com.foliux.pdf
+productName: Foliux PDF
+copyright: Copyright © Foliux
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**
+  - package.json
+asar: true
+
+# Asociación de archivos .pdf: "Abrir con Foliux PDF" y, si el usuario quiere, aplicación predeterminada
+fileAssociations:
+  - ext: pdf
+    name: Documento PDF
+    description: Documento PDF
+    mimeType: application/pdf
+    role: Viewer
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Foliux PDF
+  installerLanguages: [es_ES]
+  language: '3082' # español (España)
+  artifactName: Foliux-PDF-Setup-${version}.${ext}
+
+# Preparado para macOS y Linux (se compilan desde su propio sistema operativo)
+mac:
+  category: public.app-category.productivity
+  target: [dmg]
+linux:
+  category: Office
+  target: [AppImage, deb]
+  mimeTypes: [application/pdf]

@@ -1,0 +1,49 @@
+{
+  "name": "@foliux-pdf/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Foliux PDF",
+  "author": "Foliux",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "predev": "node ../../scripts/copy-pdfjs-assets.mjs",
+    "prebuild": "node ../../scripts/copy-pdfjs-assets.mjs",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "dist": "npm run build && electron-builder --config electron-builder.yml"
+  },
+  "devDependencies": {
+    "@foliux-pdf/core": "^0.1.0",
+    "@foliux-pdf/services": "^0.1.0",
+    "@radix-ui/react-dialog": "^1.3.1",
+    "@radix-ui/react-slot": "^1.5.0",
+    "@radix-ui/react-tooltip": "^1.4.1",
+    "@tailwindcss/vite": "^4.3.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "electron": "45.2.3",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^6.0.0",
+    "i18next": "^26.7.1",
+    "lucide-react": "^1.68.0",
+    "pdfjs-dist": "^6.5.438",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-i18next": "^17.1.12",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.7.0",
+    "tailwindcss": "^4.3.4",
+    "vite": "^8.3.5",
+    "zod": "^4.6.7",
+    "zustand": "^5.0.16"
+  },
+  "dependencies": {
+    "electron-log": "^5.4.4"
+  }
+}

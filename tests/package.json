@@ -1,0 +1,13 @@
+{
+  "name": "@foliux-pdf/tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@foliux-pdf/core": "^0.1.0",
+    "@foliux-pdf/services": "^0.1.0"
+  }
+}

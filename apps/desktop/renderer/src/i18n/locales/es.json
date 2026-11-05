@@ -1,0 +1,120 @@
+{
+  "app": {
+    "name": "Foliux PDF"
+  },
+  "titlebar": {
+    "open": "Abrir PDF",
+    "closeTab": "Cerrar {{name}}",
+    "tabs": "Documentos abiertos"
+  },
+  "toolbar": {
+    "label": "Barra de herramientas",
+    "sidebar": "Mostrar u ocultar barra lateral",
+    "previousPage": "Página anterior",
+    "nextPage": "Página siguiente",
+    "page": "Número de página",
+    "pageOf": "de {{total}}",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "zoom": "Nivel de zoom",
+    "fitWidth": "Ajustar al ancho",
+    "fitPage": "Ajustar a la página",
+    "viewMode": "Modo de lectura",
+    "fullscreen": "Pantalla completa",
+    "search": "Buscar en el documento",
+    "commandPalette": "Paleta de comandos",
+    "theme": "Tema: {{mode}}"
+  },
+  "viewMode": {
+    "single": "Página única",
+    "continuous": "Continuo",
+    "double": "Doble página"
+  },
+  "theme": {
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Automático"
+  },
+  "sidebar": {
+    "label": "Barra lateral",
+    "thumbnails": "Miniaturas",
+    "outline": "Marcadores",
+    "results": "Resultados de búsqueda",
+    "noOutline": "Este documento no tiene marcadores.",
+    "noResults": "Aún no hay resultados.",
+    "pageLabel": "Página {{page}}"
+  },
+  "search": {
+    "placeholder": "Buscar en el documento…",
+    "label": "Buscar texto",
+    "count": "{{current}} de {{total}}",
+    "none": "Sin resultados",
+    "running": "Buscando… {{percent}} %",
+    "cancel": "Cancelar búsqueda",
+    "next": "Resultado siguiente",
+    "previous": "Resultado anterior",
+    "close": "Cerrar búsqueda",
+    "limit": "Se muestran los primeros {{count}} resultados"
+  },
+  "welcome": {
+    "title": "Foliux PDF",
+    "subtitle": "Lee, busca y trabaja tus documentos PDF",
+    "open": "Abrir un PDF",
+    "dropHint": "o arrastra un archivo aquí",
+    "recent": "Archivos recientes",
+    "noRecent": "Todavía no has abierto ningún documento.",
+    "removeRecent": "Quitar {{name}} de recientes",
+    "clearRecent": "Borrar lista",
+    "shortcuts": "Pulsa {{keys}} para abrir la paleta de comandos"
+  },
+  "drop": {
+    "title": "Suelta el PDF para abrirlo"
+  },
+  "palette": {
+    "label": "Paleta de comandos",
+    "placeholder": "Escribe un comando o el nombre de un archivo…",
+    "empty": "No se encontró ningún comando.",
+    "commands": "Comandos",
+    "recent": "Abrir reciente"
+  },
+  "commands": {
+    "open": "Abrir PDF…",
+    "close": "Cerrar pestaña",
+    "nextTab": "Pestaña siguiente",
+    "previousTab": "Pestaña anterior",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "zoomReset": "Tamaño real (100 %)",
+    "fitWidth": "Ajustar al ancho",
+    "fitPage": "Ajustar a la página",
+    "single": "Modo: página única",
+    "continuous": "Modo: continuo",
+    "double": "Modo: doble página",
+    "fullscreen": "Pantalla completa",
+    "exitFullscreen": "Salir de pantalla completa",
+    "sidebar": "Mostrar u ocultar barra lateral",
+    "nextPage": "Página siguiente",
+    "previousPage": "Página anterior",
+    "firstPage": "Primera página",
+    "lastPage": "Última página",
+    "goToPage": "Ir a la página…",
+    "find": "Buscar en el documento",
+    "findNext": "Siguiente resultado",
+    "findPrevious": "Resultado anterior",
+    "closeSearch": "Cerrar búsqueda",
+    "theme": "Cambiar tema (claro / oscuro / automático)",
+    "palette": "Paleta de comandos"
+  },
+  "fullscreen": {
+    "hint": "Pulsa Esc para salir de la pantalla completa"
+  },
+  "errors": {
+    "openFailed": "No se pudo abrir «{{name}}»",
+    "unexpected": "Ocurrió un error inesperado. Se guardó en el registro de errores.",
+    "renderFailed": "No se pudo mostrar esta página",
+    "notPdf": "Solo se pueden abrir archivos PDF."
+  },
+  "page": {
+    "placeholder": "Página {{page}}"
+  }
+}

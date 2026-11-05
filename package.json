@@ -1,0 +1,41 @@
+{
+  "name": "foliux-pdf",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Foliux PDF - lector y editor de PDF profesional",
+  "author": "Foliux",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "apps/desktop",
+    "packages/core",
+    "packages/services",
+    "tests"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @foliux-pdf/desktop",
+    "build": "npm run build -w @foliux-pdf/desktop",
+    "dist": "npm run dist -w @foliux-pdf/desktop",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "npm run build && playwright test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.6",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.1.0"
+  },
+  "type": "module"
+}

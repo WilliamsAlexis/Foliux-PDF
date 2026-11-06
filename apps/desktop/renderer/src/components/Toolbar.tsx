@@ -8,6 +8,7 @@ import {
   Monitor,
   Moon,
   PanelLeft,
+  Save,
   Scroll,
   Search,
   Sun,
@@ -29,6 +30,8 @@ import {
   toggleFullscreen,
   zoomStep,
 } from '@/lib/actions';
+import { saveActive } from '@/lib/edit';
+import { isDirty } from '@/store/docs';
 import { cn } from '@/lib/utils';
 
 const ZOOM_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
@@ -86,6 +89,14 @@ export function Toolbar({ tab }: { tab: DocTab }) {
         icon={<PanelLeft />}
         aria-pressed={sidebarOpen}
         onClick={toggleSidebar}
+      />
+
+      <IconButton
+        label={t('toolbar.save')}
+        shortcut="mod+s"
+        icon={<Save />}
+        disabled={!isDirty(tab) || tab.busy !== null}
+        onClick={() => void saveActive()}
       />
 
       <Divider />

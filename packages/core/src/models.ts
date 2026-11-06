@@ -1,3 +1,5 @@
+import type { AiModelId } from './ai';
+
 /** Preferencia de tema: claro, oscuro o automático según el sistema. */
 export const THEME_PREFERENCES = ['light', 'dark', 'system'] as const;
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
@@ -9,9 +11,18 @@ export type ViewMode = (typeof VIEW_MODES)[number];
 export interface AppSettings {
   theme: ThemePreference;
   language: string;
+  /** Modelo de Claude que usa el asistente. */
+  aiModel: AiModelId;
+  /** Buscar actualizaciones al iniciar (solo avisa: descargar e instalar lo decide el usuario). */
+  autoCheckUpdates: boolean;
 }
 
-export const DEFAULT_SETTINGS: AppSettings = { theme: 'system', language: 'es' };
+export const DEFAULT_SETTINGS: AppSettings = {
+  theme: 'system',
+  language: 'es',
+  aiModel: 'claude-opus-5-5',
+  autoCheckUpdates: true,
+};
 
 /** Entrada de la lista de archivos recientes. */
 export interface RecentFile {
@@ -26,6 +37,12 @@ export interface PdfFile {
   path: string;
   name: string;
   data: Uint8Array;
+}
+
+/** Resultado de guardar o exportar un archivo. */
+export interface SavedFile {
+  path: string;
+  name: string;
 }
 
 /** Tamaño de página en puntos PDF (1 punto = 1/72 de pulgada), ya con la rotación de la página. */
@@ -49,6 +66,15 @@ export interface SearchHit {
   match: string;
   after: string;
   rects: Rect[];
+}
+
+/** Una palabra de la página con su posición (unidades de la vista, origen arriba-izquierda). */
+export interface PageWord {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 /** Elemento de los marcadores (índice) del documento. */

@@ -1,18 +1,18 @@
 {
   "name": "@foliux-pdf/desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Foliux PDF",
   "author": "Foliux",
   "main": "./out/main/index.js",
   "scripts": {
-    "predev": "node ../../scripts/copy-pdfjs-assets.mjs",
-    "prebuild": "node ../../scripts/copy-pdfjs-assets.mjs",
+    "predev": "node ../../scripts/copy-pdfjs-assets.mjs && node ../../scripts/copy-tesseract-assets.mjs && node ../../scripts/fetch-qpdf.mjs",
+    "prebuild": "node ../../scripts/copy-pdfjs-assets.mjs && node ../../scripts/copy-tesseract-assets.mjs && node ../../scripts/fetch-qpdf.mjs",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
-    "dist": "npm run build && electron-builder --config electron-builder.yml"
+    "dist": "npm run build && electron-builder --config electron-builder.yml --publish never"
   },
   "devDependencies": {
     "@foliux-pdf/core": "^0.1.0",
@@ -21,6 +21,8 @@
     "@radix-ui/react-slot": "^1.5.0",
     "@radix-ui/react-tooltip": "^1.4.1",
     "@tailwindcss/vite": "^4.3.4",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/spa": "^1.0.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.2.1",
@@ -39,11 +41,13 @@
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.4",
+    "tesseract.js": "^7.0.0",
     "vite": "^8.3.5",
     "zod": "^4.6.7",
     "zustand": "^5.0.16"
   },
   "dependencies": {
-    "electron-log": "^5.4.4"
+    "electron-log": "^5.4.4",
+    "electron-updater": "^6.8.11"
   }
 }

@@ -80,3 +80,38 @@ export async function writeTestPdf(
   await writeFile(path, buildPdf(pageTexts));
   return path;
 }
+
+/**
+ * Todo el texto del PDF que un buscador de bytes podría encontrar: el archivo tal cual, los flujos
+ * descomprimidos y las cadenas en hexadecimal (pdf-lib escribe así el texto y los metadatos), tanto
+ * en Latin-1 como en UTF-16. Sirve para comprobar que algo «no está» sin que la prueba pase en vacío.
+ */
+export async function everything(data: Uint8Array): Promise<string> {
+  const { inflateSync } = await import('node:zlib');
+  const raw = Buffer.from(data);
+  const latin = raw.toString('latin1');
+  const NL = String.fromCharCode(10);
+  let text = latin;
+  // Tras la palabra «stream» va un salto de línea (CR LF o LF): se construye sin escapes de control.
+  const streams = new RegExp(`stream${String.fromCharCode(13)}?${NL}`, 'g');
+  let match: RegExpExecArray | null;
+  while ((match = streams.exec(latin))) {
+    const start = match.index + match[0].length;
+    const end = raw.indexOf('endstream', start);
+    if (end < 0) break;
+    try {
+      text += NL + inflateSync(raw.subarray(start, end)).toString('latin1');
+    } catch {
+      // no era un flujo comprimido con Flate
+    }
+  }
+  const decoded: string[] = [];
+  for (const hex of text.matchAll(/<([0-9A-Fa-f]{8,})>/g)) {
+    const bytes = Buffer.from(hex[1]!, 'hex');
+    decoded.push(bytes.toString('latin1'));
+    if (bytes[0] === 0xfe && bytes[1] === 0xff) {
+      decoded.push(new TextDecoder('utf-16be').decode(bytes.subarray(2)));
+    }
+  }
+  return text + NL + decoded.join(NL);
+}

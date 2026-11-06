@@ -1,5 +1,15 @@
 import { create } from 'zustand';
-import type { IPdfDocument, OutlineItem, PageSize, SearchHit } from '@foliux-pdf/core';
+import type {
+  Annotation,
+  FormFieldInfo,
+  FormValues,
+  SignatureReport,
+  IPdfDocument,
+  OutlineItem,
+  PageSize,
+  Protection,
+  SearchHit,
+} from '@foliux-pdf/core';
 import { clamp } from '@/lib/utils';
 import type { ZoomMode } from '@/lib/layout';
 
@@ -31,11 +41,38 @@ export interface ScrollRequest {
   nonce: number;
 }
 
+/** Estado editable de un documento: sirve para el historial (deshacer/rehacer) y para saber si hay cambios. */
+export interface Snapshot {
+  /** Bytes del PDF SIN las anotaciones de Foliux (se escriben al guardar). */
+  data: Uint8Array;
+  annotations: Annotation[];
+}
+
 export interface DocTab {
   id: string;
   path: string;
   name: string;
   doc: IPdfDocument;
+  /** Bytes actuales del documento (con los cambios de páginas ya aplicados). */
+  data: Uint8Array;
+  annotations: Annotation[];
+  selectedAnnotationId: string | null;
+  /** Páginas seleccionadas en las miniaturas (base 1). */
+  pageSelection: number[];
+  history: Snapshot[];
+  future: Snapshot[];
+  /** Último estado guardado en disco; si coincide con el actual no hay cambios pendientes. */
+  saved: Snapshot & { protection: Protection | null };
+  /** Contraseñas y permisos con los que se guardará el archivo (null = sin proteger). */
+  protection: Protection | null;
+  /** Firmas digitales que tenía el archivo al abrirlo (guardar con cambios las invalida). */
+  signatures: SignatureReport[];
+  /** Campos de formulario del documento (null = aún sin leer). */
+  form: FormFieldInfo[] | null;
+  /** Valores escritos por el usuario que todavía no están en el PDF. */
+  formValues: FormValues;
+  /** Texto de la operación larga en curso (bloquea la edición mientras tanto). */
+  busy: string | null;
   numPages: number;
   sizes: PageSize[];
   page: number;
@@ -55,7 +92,22 @@ interface DocsState {
   addTab: (
     tab: Omit<
       DocTab,
-      'id' | 'page' | 'zoomMode' | 'customZoom' | 'zoom' | 'outline' | 'search' | 'scrollRequest'
+      | 'id'
+      | 'page'
+      | 'zoomMode'
+      | 'customZoom'
+      | 'zoom'
+      | 'outline'
+      | 'search'
+      | 'scrollRequest'
+      | 'selectedAnnotationId'
+      | 'pageSelection'
+      | 'history'
+      | 'future'
+      | 'saved'
+      | 'busy'
+      | 'form'
+      | 'formValues'
     >,
   ) => string;
   closeTab: (id: string) => void;
@@ -87,6 +139,14 @@ export const useDocs = create<DocsState>((set, get) => ({
       outline: null,
       search: EMPTY_SEARCH,
       scrollRequest: null,
+      selectedAnnotationId: null,
+      pageSelection: [],
+      history: [],
+      future: [],
+      saved: { data: base.data, annotations: base.annotations, protection: base.protection },
+      busy: null,
+      form: null,
+      formValues: {},
     };
     set((s) => ({ tabs: [...s.tabs, tab], activeId: id }));
     return id;
@@ -136,6 +196,16 @@ export const useDocs = create<DocsState>((set, get) => ({
       tabs: s.tabs.map((t) => (t.id === id && t.page !== page ? { ...t, page } : t)),
     })),
 }));
+
+/** ¿Tiene cambios sin guardar? (compara por referencia: deshacer hasta el estado guardado lo deja limpio). */
+export function isDirty(tab: DocTab): boolean {
+  return (
+    tab.data !== tab.saved.data ||
+    tab.annotations !== tab.saved.annotations ||
+    tab.protection !== tab.saved.protection ||
+    Object.keys(tab.formValues).length > 0
+  );
+}
 
 export function getActiveTab(): DocTab | undefined {
   const { tabs, activeId } = useDocs.getState();

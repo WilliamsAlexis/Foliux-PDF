@@ -10,6 +10,12 @@ files:
   - package.json
 asar: true
 
+# qpdf (Apache 2.0) viaja junto a la aplicación, fuera del asar: es un ejecutable externo
+extraResources:
+  - from: resources/qpdf
+    to: qpdf
+    filter: ['**/*']
+
 # Asociación de archivos .pdf: "Abrir con Foliux PDF" y, si el usuario quiere, aplicación predeterminada
 fileAssociations:
   - ext: pdf
@@ -18,7 +24,14 @@ fileAssociations:
     mimeType: application/pdf
     role: Viewer
 
+# Las actualizaciones se publican como Releases de GitHub (el instalador, su .blockmap y latest.yml)
+publish:
+  provider: github
+  owner: WilliamsAlexis
+  repo: Foliux-PDF
+
 win:
+  icon: build/icon.ico
   target:
     - target: nsis
       arch: [x64]

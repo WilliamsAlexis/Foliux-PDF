@@ -117,6 +117,15 @@ body {
   position: absolute;
   inset: 0;
   z-index: 1;
+  /*
+   * PDF.js define estas variables solo dentro de su propio visor (".pdfViewer .page"), que aquí no
+   * usamos. Sin ellas, el tamaño de letra de cada fragmento era inválido y heredaba el del cuerpo,
+   * con lo que la selección de texto no coincidía con lo dibujado (ni se podía resaltar bien).
+   */
+  --user-unit: 1;
+  --total-scale-factor: calc(var(--scale-factor) * var(--user-unit));
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
 }
 .pdf-page .textLayer ::selection {
   background: color-mix(in srgb, var(--primary) 35%, transparent);

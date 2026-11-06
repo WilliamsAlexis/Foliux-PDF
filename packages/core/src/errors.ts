@@ -4,6 +4,24 @@ export const ERROR_CODES = [
   'NOT_A_PDF',
   'FILE_TOO_LARGE',
   'PDF_ENCRYPTED',
+  /** El PDF está protegido y hace falta una contraseña para abrirlo. */
+  'PASSWORD_REQUIRED',
+  /** La contraseña indicada no es correcta. */
+  'PASSWORD_INVALID',
+  /** No se encuentra qpdf (el programa que cifra y descifra). */
+  'QPDF_MISSING',
+  /** No hay LibreOffice instalado (hace falta para convertir documentos de Office a PDF). */
+  'LIBREOFFICE_MISSING',
+  /** No hay clave de la API de Claude configurada. */
+  'AI_KEY_MISSING',
+  /** La clave de la API no es válida o no tiene permiso. */
+  'AI_AUTH',
+  /** Límite de uso o saturación de la API: probar más tarde. */
+  'AI_RATE_LIMIT',
+  /** La IA rechazó responder (política de seguridad). */
+  'AI_REFUSED',
+  /** Otro fallo de la API de Claude. */
+  'AI_ERROR',
   'PDF_CORRUPT',
   'IO_ERROR',
   'INVALID_REQUEST',

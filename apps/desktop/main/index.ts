@@ -4,16 +4,29 @@ import { extname, join, normalize, sep } from 'node:path';
 import {
   app,
   BrowserWindow,
+  dialog,
   Menu,
   nativeTheme,
   protocol,
+  safeStorage,
   session,
   shell,
   type MenuItemConstructorOptions,
 } from 'electron';
 import log from 'electron-log/main';
+import { autoUpdater } from 'electron-updater';
 import { ipcEvents, type ILogger, type ThemePreference } from '@foliux-pdf/core';
-import { RecentFilesService, SettingsService } from '@foliux-pdf/services/node';
+import {
+  AiService,
+  AuditLogService,
+  EncryptedKeyStore,
+  QpdfService,
+  UpdateManager,
+  WorkspaceService,
+  type UpdaterLike,
+  RecentFilesService,
+  SettingsService,
+} from '@foliux-pdf/services/node';
 import { registerIpcHandlers } from './ipc';
 
 // Permite aislar los datos de usuario (las pruebas E2E no tocan los del usuario real).
@@ -49,6 +62,7 @@ const MIME_TYPES: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.wasm': 'application/wasm',
+  '.gz': 'application/gzip',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
@@ -135,6 +149,8 @@ function isTrustedUrl(url: string): boolean {
 
 // ---------- Ventana ----------
 
+const iconPath = join(__dirname, '../../build/icon.png');
+
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
     width: 1280,
@@ -143,6 +159,8 @@ function createWindow(): BrowserWindow {
     minHeight: 560,
     show: false,
     title: 'Foliux PDF',
+    // Icono de la ventana en desarrollo; al instalar lo aporta el propio ejecutable.
+    ...(existsSync(iconPath) ? { icon: iconPath } : {}),
     backgroundColor: isDarkTheme() ? '#09090b' : '#ffffff',
     // Barra de título propia: el renderer dibuja las pestañas; el sistema pone los botones de ventana.
     titleBarStyle: 'hidden',
@@ -167,6 +185,20 @@ function createWindow(): BrowserWindow {
   window.on('closed', () => {
     mainWindow = null;
     rendererReady = false;
+  });
+  // El renderer bloquea el cierre (beforeunload) cuando hay cambios sin guardar; aquí se pregunta.
+  window.webContents.on('will-prevent-unload', (event) => {
+    const choice = dialog.showMessageBoxSync(window, {
+      type: 'warning',
+      buttons: ['Cancelar', 'Salir sin guardar'],
+      defaultId: 0,
+      cancelId: 0,
+      title: 'Cambios sin guardar',
+      message: 'Hay documentos con cambios sin guardar.',
+      detail: 'Si sales ahora, esos cambios se perderán.',
+    });
+    // preventDefault ignora el bloqueo y deja cerrar la ventana.
+    if (choice === 1) event.preventDefault();
   });
   window.webContents.on('render-process-gone', (_event, details) => {
     logger.error(`El proceso de la interfaz terminó: ${details.reason}`);
@@ -243,10 +275,42 @@ if (!app.requestSingleInstanceLock()) {
       if (process.platform !== 'darwin') mainWindow?.setTitleBarOverlay(titleBarColors());
     });
 
+    // qpdf: el incluido con la aplicación (junto al ejecutable al empaquetar, o en resources/ en desarrollo).
+    const qpdfPath =
+      process.platform === 'win32'
+        ? app.isPackaged
+          ? join(process.resourcesPath, 'qpdf', 'qpdf.exe')
+          : join(app.getAppPath(), 'resources', 'qpdf', 'qpdf.exe')
+        : 'qpdf';
+
+    // Clave de la API de Claude: cifrada con el sistema operativo (en Windows, DPAPI). Solo la usa este proceso.
+    const keyStore = new EncryptedKeyStore(join(app.getPath('userData'), 'ai-key.bin'), {
+      isAvailable: () => safeStorage.isEncryptionAvailable(),
+      encrypt: (plain) => safeStorage.encryptString(plain),
+      decrypt: (encrypted) => safeStorage.decryptString(Buffer.from(encrypted)),
+    });
+    const ai = new AiService({
+      getKey: () => keyStore.get(),
+      getModel: async () => (await settings.get()).aiModel,
+    });
+
+    // Actualizaciones: solo en la aplicación instalada. Avisan; descargar e instalar lo decide el usuario.
+    const updates = new UpdateManager(
+      app.isPackaged ? (autoUpdater as unknown as UpdaterLike) : null,
+      (state) => mainWindow?.webContents.send(ipcEvents.updateChanged, state),
+      logger,
+    );
+
     registerIpcHandlers({
       logger,
       recent,
       settings,
+      qpdf: new QpdfService(qpdfPath),
+      ai,
+      keyStore,
+      updates,
+      workspaces: new WorkspaceService(join(app.getPath('userData'), 'workspaces.json'), logger),
+      audit: new AuditLogService(join(app.getPath('userData'), 'audit-log.jsonl')),
       getWindow: (event) => BrowserWindow.fromWebContents(event.sender),
       isTrustedUrl,
       onSettingsChanged: applyTheme,
@@ -264,6 +328,11 @@ if (!app.requestSingleInstanceLock()) {
     registerAppProtocol();
     buildMenu();
     mainWindow = createWindow();
+
+    // Búsqueda silenciosa al iniciar (unos segundos después, para no retrasar el arranque).
+    if (app.isPackaged && (await settings.get()).autoCheckUpdates) {
+      setTimeout(() => void updates.check(), 8000);
+    }
     logger.info(`Foliux PDF ${app.getVersion()} iniciado (${process.platform})`);
 
     app.on('activate', () => {

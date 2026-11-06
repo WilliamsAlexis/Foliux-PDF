@@ -7,3 +7,5 @@ test-results/
 apps/desktop/renderer/public/pdfjs/
 *.log
 .DS_Store
+apps/desktop/resources/qpdf/
+apps/desktop/renderer/public/tesseract/

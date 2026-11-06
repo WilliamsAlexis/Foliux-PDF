@@ -1,6 +1,7 @@
-import { FileText, Plus, X } from 'lucide-react';
+import { BadgeCheck, FileText, Lock, Plus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useDocs } from '@/store/docs';
+import { isDirty, useDocs } from '@/store/docs';
+import { requestCloseTab } from '@/lib/edit';
 import { openPdfDialog } from '@/lib/actions';
 import { cn } from '@/lib/utils';
 import { IconButton } from '@/components/IconButton';
@@ -15,7 +16,7 @@ export function TitleBar() {
   const tabs = useDocs((s) => s.tabs);
   const activeId = useDocs((s) => s.activeId);
   const setActive = useDocs((s) => s.setActive);
-  const closeTab = useDocs((s) => s.closeTab);
+  const closeTab = requestCloseTab;
   const isMac = window.foliux.platform === 'darwin';
 
   return (
@@ -68,6 +69,26 @@ export function TitleBar() {
                     : 'text-muted-foreground hover:bg-background/60 hover:text-foreground',
                 )}
               >
+                {tab.signatures.length > 0 && (
+                  <BadgeCheck
+                    className="size-3 shrink-0 text-muted-foreground"
+                    aria-label={t('signatures.signedBadge')}
+                  />
+                )}
+                {tab.protection && (
+                  <Lock
+                    className="size-3 shrink-0 text-muted-foreground"
+                    aria-label={t('security.protected')}
+                  />
+                )}
+                {isDirty(tab) && (
+                  <span
+                    role="img"
+                    aria-label={t('titlebar.unsaved')}
+                    title={t('titlebar.unsaved')}
+                    className="size-2 shrink-0 rounded-full bg-primary"
+                  />
+                )}
                 <span className="min-w-0 flex-1 truncate">{tab.name}</span>
                 <button
                   type="button"

@@ -1,5 +1,16 @@
 export * from './errors';
 export * from './models';
+export * from './annotations';
+export * from './page-ops';
+export * from './security';
+export * from './diff';
+export * from './forms';
+export * from './layout';
+export * from './ai';
+export * from './workspace';
+export * from './updates';
+export * from './new-document';
+export * from './signing';
 export * from './interfaces';
 export * from './ipc';
 export type * from './api';

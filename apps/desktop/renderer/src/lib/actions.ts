@@ -1,5 +1,6 @@
 import { FoliuxError } from '@foliux-pdf/core';
 import type { ThemePreference } from '@foliux-pdf/core';
+import { toast } from 'sonner';
 import i18n from '@/i18n';
 import { pdfEngine } from './engine';
 import { notifyError } from './notify';
@@ -23,7 +24,7 @@ export async function refreshRecent(): Promise<void> {
   }
 }
 
-export async function openPdfPath(path: string): Promise<void> {
+export async function openPdfPath(path: string, password?: string): Promise<void> {
   const key = path.toLowerCase();
   const existing = useDocs.getState().tabs.find((t) => t.path.toLowerCase() === key);
   if (existing) {
@@ -35,13 +36,30 @@ export async function openPdfPath(path: string): Promise<void> {
 
   const name = path.split(/[\\/]/).pop() ?? path;
   try {
-    const file = await window.foliux.readPdf(path);
+    const file = await window.foliux.readPdf(path, password);
     const doc = await pdfEngine.load(file.data);
     const sizes = await doc.getPageSizes();
 
-    const id = useDocs
-      .getState()
-      .addTab({ path: file.path, name: file.name, doc, numPages: doc.numPages, sizes });
+    const id = useDocs.getState().addTab({
+      path: file.path,
+      name: file.name,
+      doc,
+      numPages: doc.numPages,
+      sizes,
+      data: file.data,
+      annotations: file.annotations,
+      protection: file.protection,
+      signatures: file.signatures,
+    });
+    if (file.signatures.length > 0) {
+      const bad = file.signatures.filter((s) => s.integrity !== 'valid').length;
+      (bad > 0 ? toast.warning : toast.info)(
+        bad > 0
+          ? i18n.t('signatures.openedBad', { name: file.name, count: bad })
+          : i18n.t('signatures.openedOk', { name: file.name, count: file.signatures.length }),
+      );
+    }
+    if (file.protection) toast.info(i18n.t('security.openedProtected', { name: file.name }));
 
     // Los marcadores se cargan aparte: no retrasan la apertura del documento.
     doc
@@ -49,6 +67,14 @@ export async function openPdfPath(path: string): Promise<void> {
       .then((outline) => useDocs.getState().update(id, { outline }))
       .catch(() => useDocs.getState().update(id, { outline: [] }));
   } catch (error) {
+    // Un PDF protegido pide su contraseña (otra vez si la anterior era incorrecta).
+    if (
+      error instanceof FoliuxError &&
+      (error.code === 'PASSWORD_REQUIRED' || error.code === 'PASSWORD_INVALID')
+    ) {
+      useUi.getState().setPasswordPrompt({ path, invalid: error.code === 'PASSWORD_INVALID' });
+      return;
+    }
     notifyError(i18n.t('errors.openFailed', { name }), error);
     // Si el archivo ya no existe, se quita de la lista de recientes.
     if (error instanceof FoliuxError && error.code === 'FILE_NOT_FOUND') {

@@ -1,11 +1,20 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { IPdfDocument, SearchHit } from '@foliux-pdf/core';
+import type { Annotation, IPdfDocument, SearchHit } from '@foliux-pdf/core';
 import { cn, isAbortError } from '@/lib/utils';
 import { notifyError } from '@/lib/notify';
+import type { DiffMark } from '@/store/compare';
+import { AnnotationLayer } from './AnnotationLayer';
+import { FormLayer } from './FormLayer';
 
 interface PageViewProps {
+  tabId: string;
   doc: IPdfDocument;
+  /** Anotaciones de esta página. */
+  annotations: Annotation[];
+  /** Diferencias con otra versión (comparación de documentos). */
+  diff?: DiffMark[];
+  currentChange?: number;
   pageNumber: number;
   /** Tamaño de la página en unidades PDF (a escala 1). */
   width: number;
@@ -26,7 +35,11 @@ interface PageViewProps {
  * al acercarse se dibuja el canvas y la capa de texto, y al alejarse se liberan para ahorrar memoria.
  */
 export const PageView = memo(function PageView({
+  tabId,
   doc,
+  annotations,
+  diff,
+  currentChange = -1,
   pageNumber,
   width,
   height,
@@ -140,6 +153,38 @@ export const PageView = memo(function PageView({
           />
         )),
       )}
+
+      {/* Diferencias con la otra versión: rojo = eliminado, verde = añadido, ámbar = modificado */}
+      {diff?.map((mark, i) => (
+        <div
+          key={`diff-${i}`}
+          aria-hidden
+          className={cn(
+            'pointer-events-none absolute z-[2] rounded-[2px] mix-blend-multiply',
+            mark.kind === 'removed' && 'bg-red-400/50',
+            mark.kind === 'added' && 'bg-green-400/50',
+            mark.kind === 'changed' && 'bg-amber-400/55',
+            mark.change === currentChange && 'ring-2 ring-blue-600',
+          )}
+          style={{
+            left: mark.rect.x * scale,
+            top: mark.rect.y * scale,
+            width: mark.rect.width * scale,
+            height: mark.rect.height * scale,
+          }}
+        />
+      ))}
+
+      <AnnotationLayer
+        tabId={tabId}
+        pageNumber={pageNumber}
+        width={width}
+        height={height}
+        scale={scale}
+        annotations={annotations}
+      />
+
+      <FormLayer tabId={tabId} pageNumber={pageNumber} scale={scale} />
 
       {!rendered && !failed ? (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-neutral-400">

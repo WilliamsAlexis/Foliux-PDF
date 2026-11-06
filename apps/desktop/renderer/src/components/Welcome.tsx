@@ -1,10 +1,12 @@
-import { FileText, FolderOpen, X } from 'lucide-react';
+import { FilePlus2, FileText, FolderOpen, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/IconButton';
 import { openPdfDialog, openPdfPath, refreshRecent } from '@/lib/actions';
 import { formatShortcut } from '@/lib/shortcuts';
 import { useUi } from '@/store/ui';
+import { useUpdate } from '@/store/update';
+import { openNewDocumentDialog } from '@/lib/newdoc';
 
 /** Pantalla inicial cuando no hay ningún documento abierto. */
 export function Welcome() {
@@ -24,17 +26,23 @@ export function Welcome() {
     <div className="flex h-full items-center justify-center overflow-auto p-8">
       <div className="w-full max-w-[560px]">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
-            <FileText className="size-7" aria-hidden />
-          </div>
+          <img src="./logo.svg" alt="" aria-hidden className="mb-4 size-16 drop-shadow-lg" />
           <h1 className="text-3xl font-semibold tracking-tight">{t('welcome.title')}</h1>
           <p className="mt-2 text-muted-foreground">{t('welcome.subtitle')}</p>
-          <Button className="mt-6" onClick={() => void openPdfDialog()}>
-            <FolderOpen aria-hidden /> {t('welcome.open')}
-            <kbd className="ml-1 rounded bg-primary-foreground/20 px-1.5 py-0.5 font-sans text-xs">
-              {formatShortcut('mod+o')}
-            </kbd>
-          </Button>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <Button onClick={() => void openPdfDialog()}>
+              <FolderOpen aria-hidden /> {t('welcome.open')}
+              <kbd className="ml-1 rounded bg-primary-foreground/20 px-1.5 py-0.5 font-sans text-xs">
+                {formatShortcut('mod+o')}
+              </kbd>
+            </Button>
+            <Button variant="outline" onClick={openNewDocumentDialog}>
+              <FilePlus2 aria-hidden /> {t('welcome.new')}
+              <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 font-sans text-xs">
+                {formatShortcut('mod+n')}
+              </kbd>
+            </Button>
+          </div>
           <p className="mt-3 text-sm text-muted-foreground">{t('welcome.dropHint')}</p>
         </div>
 
@@ -84,6 +92,15 @@ export function Welcome() {
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           {t('welcome.shortcuts', { keys: formatShortcut('mod+k') })}
+        </p>
+        <p className="mt-2 text-center text-xs">
+          <button
+            type="button"
+            className="text-muted-foreground underline"
+            onClick={() => useUpdate.getState().setDialogOpen(true)}
+          >
+            {t('updates.toolsAction')}
+          </button>
         </p>
       </div>
     </div>

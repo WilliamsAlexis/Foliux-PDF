@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { SearchHit } from '@foliux-pdf/core';
+import type { Annotation, SearchHit } from '@foliux-pdf/core';
 import { useDocs, type DocTab } from '@/store/docs';
 import { useUi } from '@/store/ui';
 import {
@@ -13,6 +13,8 @@ import {
 } from '@/lib/layout';
 import { zoomByFactor } from '@/lib/actions';
 import { PageView } from './PageView';
+import { SelectionBar } from './SelectionBar';
+import { buildDiffMarks, useCompare, type DiffMark } from '@/store/compare';
 
 /** Último scroll de cada pestaña, para recuperarlo al volver a ella (no necesita ser reactivo). */
 const scrollMemory = new Map<string, number>();
@@ -53,6 +55,44 @@ function useHitsByPage(tab: DocTab): {
   }, [hits, current]);
 }
 
+const EMPTY_ANNOTATIONS: Annotation[] = [];
+const EMPTY_MARKS: DiffMark[] = [];
+
+/** Marcas de la comparación de documentos para esta pestaña, agrupadas por página. */
+function useDiffByPage(tabId: string): { byPage: Map<number, DiffMark[]>; current: number } {
+  const changes = useCompare((s) => s.changes);
+  const tabA = useCompare((s) => s.tabA);
+  const tabB = useCompare((s) => s.tabB);
+  const current = useCompare((s) => s.current);
+  const byPage = useMemo(
+    () => buildDiffMarks({ changes, tabA, tabB }, tabId),
+    [changes, tabA, tabB, tabId],
+  );
+  return { byPage, current };
+}
+
+/** Anotaciones agrupadas por página (los arrays de páginas sin cambios conservan su identidad). */
+function useAnnotationsByPage(tab: DocTab): Map<number, Annotation[]> {
+  const previous = useRef(new Map<number, Annotation[]>());
+  return useMemo(() => {
+    const grouped = new Map<number, Annotation[]>();
+    for (const annotation of tab.annotations) {
+      const list = grouped.get(annotation.page);
+      if (list) list.push(annotation);
+      else grouped.set(annotation.page, [annotation]);
+    }
+    // Si la lista de una página es idéntica a la anterior se reutiliza, así no se repinta de más.
+    for (const [page, list] of grouped) {
+      const old = previous.current.get(page);
+      if (old && old.length === list.length && old.every((a, i) => a === list[i])) {
+        grouped.set(page, old);
+      }
+    }
+    previous.current = grouped;
+    return grouped;
+  }, [tab.annotations]);
+}
+
 export function Viewer({ tab }: { tab: DocTab }) {
   const viewMode = useUi((s) => s.viewMode);
   const update = useDocs((s) => s.update);
@@ -88,7 +128,8 @@ export function Viewer({ tab }: { tab: DocTab }) {
   const scale = zoom * CSS_UNITS;
 
   return (
-    <div ref={boxRef} className="h-full w-full">
+    <div ref={boxRef} className="relative h-full w-full">
+      <SelectionBar />
       {box.width > 0 &&
         (viewMode === 'continuous' ? (
           <ContinuousView tab={tab} scale={scale} />
@@ -109,6 +150,8 @@ function ContinuousView({ tab, scale }: { tab: DocTab; scale: number }) {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const tops = useMemo(() => computePageTops(sizes, scale), [sizes, scale]);
   const { byPage, current } = useHitsByPage(tab);
+  const annotationsByPage = useAnnotationsByPage(tab);
+  const diff = useDiffByPage(tab.id);
 
   // Ancla para mantener la posición al cambiar el zoom: página visible y fracción recorrida de ella.
   const anchor = useRef({ page: 1, fraction: 0 });
@@ -186,7 +229,11 @@ function ContinuousView({ tab, scale }: { tab: DocTab; scale: number }) {
         {sizes.map((size, index) => (
           <PageView
             key={index}
+            tabId={tab.id}
             doc={doc}
+            annotations={annotationsByPage.get(index + 1) ?? EMPTY_ANNOTATIONS}
+            diff={diff.byPage.get(index + 1) ?? EMPTY_MARKS}
+            currentChange={diff.current}
             pageNumber={index + 1}
             width={size.width}
             height={size.height}
@@ -218,6 +265,8 @@ function PagedView({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { byPage, current } = useHitsByPage(tab);
+  const annotationsByPage = useAnnotationsByPage(tab);
+  const diff = useDiffByPage(tab.id);
   const visiblePages = pagesInView(tab.page, tab.numPages, viewMode);
   const firstVisible = visiblePages[0] ?? 1;
 
@@ -257,7 +306,11 @@ function PagedView({
           return (
             <PageView
               key={pageNumber}
+              tabId={tab.id}
               doc={tab.doc}
+              annotations={annotationsByPage.get(pageNumber) ?? EMPTY_ANNOTATIONS}
+              diff={diff.byPage.get(pageNumber) ?? EMPTY_MARKS}
+              currentChange={diff.current}
               pageNumber={pageNumber}
               width={size.width}
               height={size.height}

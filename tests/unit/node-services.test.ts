@@ -86,14 +86,24 @@ describe('RecentFilesService', () => {
 describe('SettingsService', () => {
   it('devuelve valores por defecto si no hay archivo', async () => {
     const service = new SettingsService(join(dir, 'settings.json'));
-    expect(await service.get()).toEqual({ theme: 'system', language: 'es' });
+    expect(await service.get()).toEqual({
+      theme: 'system',
+      language: 'es',
+      aiModel: 'claude-opus-5-5',
+      autoCheckUpdates: true,
+    });
   });
 
   it('guarda cambios parciales y los recuerda', async () => {
     const path = join(dir, 'nested', 'settings.json');
     await new SettingsService(path).update({ theme: 'dark' });
 
-    expect(await new SettingsService(path).get()).toEqual({ theme: 'dark', language: 'es' });
+    expect(await new SettingsService(path).get()).toEqual({
+      theme: 'dark',
+      language: 'es',
+      aiModel: 'claude-opus-5-5',
+      autoCheckUpdates: true,
+    });
   });
 
   it('corrige un tema inválido en disco', async () => {

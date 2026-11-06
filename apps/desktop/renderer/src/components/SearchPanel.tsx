@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Loader2, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, EyeOff, Loader2, Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { DocTab } from '@/store/docs';
 import { useUi } from '@/store/ui';
 import { cancelSearch, runSearch, stepHit } from '@/lib/actions';
 import { IconButton } from '@/components/IconButton';
+import { markSearchResultsForRedaction } from '@/lib/security';
 
 /** Panel flotante de búsqueda (Ctrl+F). La búsqueda es asíncrona, muestra progreso y se puede cancelar. */
 export function SearchPanel({ tab }: { tab: DocTab }) {
@@ -100,6 +101,13 @@ export function SearchPanel({ tab }: { tab: DocTab }) {
           icon={<ChevronDown />}
           disabled={hits.length === 0}
           onClick={() => stepHit(1)}
+          className="size-7"
+        />
+        <IconButton
+          label={t('search.markRedact')}
+          icon={<EyeOff />}
+          disabled={hits.length === 0 || status === 'running'}
+          onClick={() => markSearchResultsForRedaction()}
           className="size-7"
         />
         {status === 'running' ? (

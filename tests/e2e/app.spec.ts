@@ -87,6 +87,19 @@ test('abre el PDF recibido por línea de comandos y muestra pestaña, páginas y
 test('el texto del PDF queda seleccionable (capa de texto)', async () => {
   const text = page.locator('.pdf-page .textLayer').first();
   await expect(text).toContainText('Hola Foliux', { timeout: 15_000 });
+
+  // Regresión: la letra de la capa de texto debe escalar con el zoom (--scale-factor × 24 pt del PDF de
+  // prueba). Si faltan las variables CSS de PDF.js, hereda el tamaño del cuerpo (14 px) y la selección se desalinea.
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const layer = document.querySelector<HTMLElement>('.pdf-page .textLayer')!;
+        const span = layer.querySelector('span')!;
+        const scale = Number.parseFloat(layer.style.getPropertyValue('--scale-factor'));
+        return Math.abs(Number.parseFloat(getComputedStyle(span).fontSize) - scale * 24) < 1;
+      }),
+    )
+    .toBe(true);
 });
 
 test('buscar resalta coincidencias y navega entre ellas', async () => {

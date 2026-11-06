@@ -6,6 +6,7 @@ import type {
   LoadPdfOptions,
   OutlineItem,
   PageSize,
+  PageWord,
   PdfMetadata,
   Rect,
   RenderPageOptions,
@@ -303,6 +304,78 @@ class PdfJsDocument implements IPdfDocument {
         height: Math.abs(vy2 - vy1),
       });
     }
+    return rects;
+  }
+
+  async getWords(pageNumber: number): Promise<PageWord[]> {
+    const text = await this.getPageText(pageNumber);
+    const page = await this.proxy.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: 1 });
+    const words: PageWord[] = [];
+    for (const match of text.full.matchAll(/\S+/g)) {
+      const rects = this.rectsForMatch(text, match.index, match.index + match[0].length, viewport);
+      if (rects.length === 0) continue;
+      const x1 = Math.min(...rects.map((r) => r.x));
+      const y1 = Math.min(...rects.map((r) => r.y));
+      const x2 = Math.max(...rects.map((r) => r.x + r.width));
+      const y2 = Math.max(...rects.map((r) => r.y + r.height));
+      words.push({ text: match[0], x: x1, y: y1, width: x2 - x1, height: y2 - y1 });
+    }
+    page.cleanup();
+    return words;
+  }
+
+  async getImageRects(pageNumber: number): Promise<Rect[]> {
+    const page = await this.proxy.getPage(pageNumber);
+    const { OPS, Util } = this.pdfjs;
+    const operators = await page.getOperatorList();
+    const viewport = page.getViewport({ scale: 1 });
+
+    type Matrix = [number, number, number, number, number, number];
+    let ctm: Matrix = [1, 0, 0, 1, 0, 0];
+    const stack: Matrix[] = [];
+    const rects: Rect[] = [];
+
+    operators.fnArray.forEach((fn, index) => {
+      const args = operators.argsArray[index] as unknown;
+      if (fn === OPS.save) {
+        stack.push([...ctm] as Matrix);
+      } else if (fn === OPS.restore) {
+        ctm = stack.pop() ?? [1, 0, 0, 1, 0, 0];
+      } else if (fn === OPS.transform) {
+        ctm = Util.transform(ctm, args as Matrix) as Matrix;
+      } else if (fn === OPS.paintFormXObjectBegin) {
+        stack.push([...ctm] as Matrix);
+        const matrix = (args as [Matrix | null])[0];
+        if (matrix) ctm = Util.transform(ctm, matrix) as Matrix;
+      } else if (fn === OPS.paintFormXObjectEnd) {
+        ctm = stack.pop() ?? [1, 0, 0, 1, 0, 0];
+      } else if (
+        fn === OPS.paintImageXObject ||
+        fn === OPS.paintInlineImageXObject ||
+        fn === OPS.paintImageXObjectRepeat
+      ) {
+        // La imagen ocupa el cuadrado unidad transformado por la matriz actual.
+        const full = Util.transform(viewport.transform, ctm) as Matrix;
+        const corners = [
+          [0, 0],
+          [1, 0],
+          [0, 1],
+          [1, 1],
+        ].map(([px, py]) => ({
+          x: full[0] * px! + full[2] * py! + full[4],
+          y: full[1] * px! + full[3] * py! + full[5],
+        }));
+        const xs = corners.map((c) => c.x);
+        const ys = corners.map((c) => c.y);
+        const x = Math.min(...xs);
+        const y = Math.min(...ys);
+        const width = Math.max(...xs) - x;
+        const height = Math.max(...ys) - y;
+        // Se descartan las imágenes diminutas (puntos, filetes, máscaras de tramado).
+        if (width >= 8 && height >= 8) rects.push({ x, y, width, height });
+      }
+    });
     return rects;
   }
 

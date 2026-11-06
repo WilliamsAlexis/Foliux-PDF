@@ -1,4 +1,15 @@
-import { BookMarked, LayoutGrid, ListFilter } from 'lucide-react';
+import {
+  BookMarked,
+  LayoutGrid,
+  ListFilter,
+  MessageSquareText,
+  Scale,
+  Wrench,
+  FormInput,
+  BadgeCheck,
+  Sparkles,
+  FolderKanban,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { DocTab } from '@/store/docs';
 import { useUi, type SidebarTab } from '@/store/ui';
@@ -7,10 +18,24 @@ import { cn } from '@/lib/utils';
 import { ThumbnailList } from './ThumbnailList';
 import { OutlineTree } from './OutlineTree';
 import { ResultsList } from './ResultsList';
+import { AnnotationList } from './AnnotationList';
+import { ToolsPanel } from './ToolsPanel';
+import { ComparePanel } from './ComparePanel';
+import { FormsPanel } from './FormsPanel';
+import { SignaturesPanel } from './SignaturesPanel';
+import { AssistantPanel } from './AssistantPanel';
+import { WorkspacePanel } from './WorkspacePanel';
 
 const TABS: { id: SidebarTab; icon: React.ReactNode; label: string }[] = [
   { id: 'thumbnails', icon: <LayoutGrid />, label: 'sidebar.thumbnails' },
   { id: 'outline', icon: <BookMarked />, label: 'sidebar.outline' },
+  { id: 'annotations', icon: <MessageSquareText />, label: 'sidebar.annotations' },
+  { id: 'tools', icon: <Wrench />, label: 'sidebar.tools' },
+  { id: 'compare', icon: <Scale />, label: 'sidebar.compare' },
+  { id: 'forms', icon: <FormInput />, label: 'sidebar.forms' },
+  { id: 'signatures', icon: <BadgeCheck />, label: 'sidebar.signatures' },
+  { id: 'assistant', icon: <Sparkles />, label: 'sidebar.assistant' },
+  { id: 'workspaces', icon: <FolderKanban />, label: 'sidebar.workspaces' },
   { id: 'results', icon: <ListFilter />, label: 'sidebar.results' },
 ];
 
@@ -60,6 +85,13 @@ export function Sidebar({ tab }: { tab: DocTab }) {
         >
           {active === 'thumbnails' && <ThumbnailList tab={tab} />}
           {active === 'outline' && <OutlineTree tab={tab} />}
+          {active === 'annotations' && <AnnotationList tab={tab} />}
+          {active === 'tools' && <ToolsPanel tab={tab} />}
+          {active === 'compare' && <ComparePanel />}
+          {active === 'forms' && <FormsPanel tab={tab} />}
+          {active === 'signatures' && <SignaturesPanel tab={tab} />}
+          {active === 'assistant' && <AssistantPanel tab={tab} />}
+          {active === 'workspaces' && <WorkspacePanel />}
           {active === 'results' && <ResultsList tab={tab} />}
         </div>
       </div>

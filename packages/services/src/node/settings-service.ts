@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  AI_MODEL_IDS,
   DEFAULT_SETTINGS,
   THEME_PREFERENCES,
   type AppSettings,
@@ -11,6 +12,8 @@ import { JsonFileStore } from './json-file-store';
 const SettingsSchema = z.object({
   theme: z.enum(THEME_PREFERENCES).catch(DEFAULT_SETTINGS.theme),
   language: z.string().catch(DEFAULT_SETTINGS.language),
+  aiModel: z.enum(AI_MODEL_IDS).catch(DEFAULT_SETTINGS.aiModel),
+  autoCheckUpdates: z.boolean().catch(DEFAULT_SETTINGS.autoCheckUpdates),
 });
 
 /** Preferencias del usuario (tema, idioma) guardadas en un JSON. */

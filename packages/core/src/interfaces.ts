@@ -1,7 +1,9 @@
 import type {
   OutlineItem,
   PageSize,
+  PageWord,
   PdfMetadata,
+  Rect,
   RecentFile,
   AppSettings,
   SearchHit,
@@ -37,6 +39,10 @@ export interface IPdfDocument {
   /** Crea la capa de texto (seleccionable) de una página. */
   renderTextLayer(pageNumber: number, options: RenderPageOptions): Promise<HTMLElement>;
   search(query: string, options?: SearchOptions): Promise<SearchHit[]>;
+  /** Rectángulos (en unidades de la vista, origen arriba-izquierda) de las imágenes dibujadas en la página. */
+  getImageRects(pageNumber: number): Promise<Rect[]>;
+  /** Palabras de la página con su posición aproximada (para conservar el texto al redactar o comparar). */
+  getWords(pageNumber: number): Promise<PageWord[]>;
   getOutline(): Promise<OutlineItem[]>;
   getMetadata(): Promise<PdfMetadata>;
   destroy(): Promise<void>;

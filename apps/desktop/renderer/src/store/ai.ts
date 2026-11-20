@@ -4,6 +4,8 @@ import type { ChatMessage, SensitiveCategory } from '@foliux-pdf/core';
 /** Estado del asistente de IA: conversaciones por documento, tareas en curso y cuadros pendientes. */
 
 export interface AiStatus {
+  /** Servicio de IA en uso. */
+  provider: 'anthropic' | 'gemini';
   configured: boolean;
   secureStorage: boolean;
   model: string;

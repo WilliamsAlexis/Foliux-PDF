@@ -44,6 +44,55 @@ tests                    Vitest (unit) y Playwright (e2e)
 `Ctrl++`/`Ctrl+-`/`Ctrl+0` zoom · `Ctrl+1`/`Ctrl+2` ajustar al ancho/página · `Alt+1/2/3` modo de lectura ·
 `F11` pantalla completa · `Ctrl+B` barra lateral · `Ctrl+G` ir a página · `Ctrl+Mayús+L` cambiar tema
 
+### Barra de acciones (estilo Acrobat)
+
+Bajo la barra de páginas hay siete acciones: **Editar, Firmar, Comentar, Convertir, Organizar páginas, Proteger y Compartir**.
+Al abrir un documento solo se ven ellas; al pulsar una aparece debajo su barra de herramientas (con icono, texto y un tooltip
+con el atajo). Pulsar otra cambia la barra y pulsar la activa la contrae. Las herramientas que necesitan una selección
+(«Borrar elemento», «Eliminar páginas», «Extraer páginas») están deshabilitadas hasta que la haya. Teclado: Tab entra en la
+barra, ← → Inicio Fin se mueven entre botones, Enter/Espacio activan y **Esc contrae** la barra secundaria.
+
+- **Editar:** editar texto, agregar texto/imagen/enlace, recortar, rotar, resaltar, subrayar, tachar, dibujo libre, formas,
+  borrar elemento, deshacer/rehacer. A la derecha: color, grosor, tipografía y negrita/cursiva según lo seleccionado.
+- **Firmar:** crear firma (dibujada, escrita o imagen), firmas guardadas, colocar (con clic), **mover y cambiar el tamaño**
+  (esquinas), fecha, iniciales y firma digital con certificado.
+- **Comentar:** nota adhesiva, comentario en texto, resaltar/subrayar/tachar y **sellos** (Aprobado, Rechazado, Borrador,
+  Confidencial, Revisado, Urgente, Copia).
+- **Convertir:** a Word, Excel, PowerPoint, imagen (PNG/JPEG), texto (.txt) y HTML, con un cuadro de opciones (nombre del archivo,
+  rango de páginas, resolución y calidad); y desde imágenes u Office. También OCR, PDF/A y lotes.
+- **Organizar páginas:** miniaturas, girar, eliminar, extraer, duplicar, insertar (en blanco o desde archivo), dividir y combinar.
+  Reordenar se hace arrastrando las miniaturas.
+- **Proteger:** contraseña y permisos, marca de agua, marcar y aplicar redacciones, limpiar metadatos.
+- **Compartir:** guardar, descargar una copia, imprimir y enviar por correo.
+
+**Limitaciones de esta barra**
+
+- **Recortar no borra:** reduce el área visible (CropBox), pero el contenido de fuera sigue dentro del archivo. Para eliminarlo
+  de verdad hay que redactar.
+- **Enlaces:** se escriben como anotaciones PDF estándar (los abren Acrobat, el navegador, etc.); el visor de Foliux no los
+  hace pulsables todavía. Solo se admiten `http://`, `https://` y `mailto:` (nunca `javascript:` ni `file:`), o un salto a otra página.
+- **Sellos, fecha e iniciales** son imágenes (no texto editable ni buscable). Las firmas, sellos e imágenes se redimensionan
+  conservando la proporción.
+- **Imprimir** dibuja cada página como imagen (150 ppp) y abre el diálogo del sistema; máximo 300 páginas por impresión. Si las
+  páginas tienen tamaños distintos, se ajustan a la hoja.
+- **Enviar por correo:** una aplicación de escritorio no puede adjuntar archivos al programa de correo por sí sola. Foliux guarda
+  el documento, abre un mensaje nuevo y te indica dónde está el archivo para que lo adjuntes.
+- **No hay «Copiar enlace»:** requeriría alojar el archivo en algún servidor, y Foliux funciona sin servidor.
+- Convertir a Word y Excel es heurístico (ver Fase 6); a texto y HTML usa el mismo reconocimiento de párrafos.
+
+**Cómo añadir una acción o una herramienta**
+
+Todo sale de un único archivo: [ribbonConfig.ts](apps/desktop/renderer/src/components/ribbon/ribbonConfig.ts).
+
+1. **Una herramienta nueva** dentro de una acción existente: añade un objeto a su lista `herramientas`:
+   `{ id: 'miHerramienta', etiqueta: 'ribbon.tools.miHerramienta', icono: Star, accion: () => ..., requiereSeleccion: 'anotacion' }`.
+   `accion` puede abrir un diálogo (`openDialog('...')`), activar una herramienta del lienzo (`canvasTool(...)`) o llamar a una función
+   de `lib/`. `requiereSeleccion` (`'anotacion'` | `'paginas'`) la deshabilita hasta que haya selección; `pendiente: true` la muestra
+   deshabilitada con el aviso «Función pendiente de implementar» (útil como marcador TODO).
+2. **Una acción nueva** (otra pestaña de la barra): añade al final de `RIBBON` `{ id, etiqueta, icono, herramientas: [...] }`.
+3. Añade los textos en `i18n/locales/es.json` (`ribbon.actions.<id>` y `ribbon.tools.<id>`). No hay que tocar `Ribbon.tsx`.
+4. Si la herramienta dibuja sobre la página, añádela al tipo `Tool` (`store/ui.ts`) y al lienzo (`viewer/AnnotationLayer.tsx`, `DRAW_TOOLS`).
+
 ### Crear un PDF desde cero
 
 `Ctrl+N` (o el botón **Nuevo PDF** de la bienvenida): eliges papel (A3, A4, A5, Carta, Legal o medidas propias), orientación y número de páginas. Se abre como «Documento sin título» y se rellena con **Añadir texto** (`X`), **Añadir imagen** (`I`), formas, anotaciones, campos de formulario, etc.; al guardar eliges dónde. Cerrarlo sin guardar pregunta. Para crear un PDF a partir de imágenes o de Word/Excel/PowerPoint se usa Herramientas › Conversión.
@@ -132,6 +181,11 @@ PDF → Word / Excel / PowerPoint / imágenes, imágenes y Office → PDF, PDF/A
 
 - La conversión a **Word y Excel es heurística**: reconstruye párrafos, títulos y columnas a partir de la posición del texto.
   Los documentos con maquetación compleja pueden salir desordenados. PowerPoint genera una diapositiva-imagen por página.
+  - **Word conserva las imágenes** (casilla «Incluir las imágenes»): cada página es una sección con su mismo tamaño y las imágenes
+    se recortan de la página a 200 ppp y se intercalan entre los párrafos según su altura. No flotan junto al texto ni conservan
+    su posición horizontal exacta (solo izquierda/centro/derecha). Se omiten los iconos muy pequeños y las imágenes que ocupan
+    casi toda la página (un escaneo: para esos usa antes el OCR). Máximo 300 imágenes por documento. No se conservan las fuentes.
+  - **Excel no lleva imágenes** (solo celdas). Una página sin texto genera una hoja con una nota en lugar de fallar.
 - **Office → PDF** necesita **LibreOffice** instalado (no se incluye por tamaño); si no está, se avisa.
 - **PDF/A es de mejor esfuerzo y no está validado** con veraPDF: no se puede garantizar el cumplimiento si el PDF usa fuentes no incrustadas.
 - La calidad del OCR depende de la resolución del escaneo; el texto reconocido queda invisible bajo la imagen.
@@ -149,6 +203,17 @@ y **resumen en audio** (voz del sistema, con pausa y parada).
 - **Privacidad:** antes de enviar un documento por primera vez se muestra un aviso con el tamaño aproximado (tokens) y el modelo.
   El texto se envía a Anthropic; el coste se factura a tu cuenta. Los documentos escaneados necesitan OCR antes.
 - Modelo por defecto `claude-opus-5-5`; se puede cambiar a Sonnet o Haiku (más baratos) en «Clave y modelo».
+- **Gemini (Google AI Studio), con capa gratuita:** en «Clave y modelo» elige el servicio **Gemini**. Crea una clave gratis en
+  `aistudio.google.com/apikey` (con tu cuenta de Google) y pégala; se guarda cifrada aparte de la de Claude (`gemini-key.bin`).
+  Modelo por defecto `gemini-2.5-flash` (el nombre se puede cambiar a mano, porque Google renueva sus modelos).
+  - **Privacidad:** en la capa gratuita Google puede usar lo que envías para mejorar sus productos. No la uses con documentos
+    confidenciales; para eso usa una cuenta de pago o Claude.
+  - **Límites:** la capa gratuita tiene un tope de peticiones y de tokens por minuto y por día; si se supera, Foliux lo avisa.
+    Los documentos muy largos pueden no caber.
+  - **Calidad:** el chat y los resúmenes funcionan bien; las tareas con formato fijo (tablas, campos, datos sensibles) dependen
+    del modelo, así que revisa siempre el resultado. La caché del documento y el reintento automático son solo de Claude.
+  - **Sin probar con la API real:** se desarrolló y probó con respuestas simuladas, no contra los servidores de Google (no hay clave
+    en el entorno de desarrollo). Si algo falla con tu clave, el mensaje de error indica la causa.
 - Documentos muy largos se **recortan por páginas completas** (tope ~1,5 M de caracteres) y se avisa de cuántas páginas se enviaron.
 - **La IA puede equivocarse u omitir datos.** La detección de datos sensibles y de campos es una ayuda, no una garantía: revisa
   siempre el resultado antes de redactar. Las citas de página pueden ser inexactas.
@@ -173,6 +238,19 @@ abre el documento en esa página. Un espacio guarda solo las rutas (`workspaces.
 - Las operaciones sobre el PDF (pdf-lib) se ejecutan en el proceso principal sin hilo aparte ni cancelación: en archivos muy
   grandes la ventana puede quedarse unos segundos sin responder.
 - La interfaz solo está en español. El instalador **no está firmado** (Windows SmartScreen avisará) y usa el icono por defecto de Electron.
+
+### Desinstalar
+
+Al desinstalar (Configuración › Aplicaciones, o el desinstalador de la carpeta del programa) se eliminan la carpeta del programa,
+los accesos directos del escritorio y del menú Inicio, la asociación de archivos .pdf y las claves del registro, y también el
+**instalador que descargó el actualizador automático** (`%LOCALAPPDATA%\@foliux-pdfdesktop-updater`). Tus datos
+(`%APPDATA%\@foliux-pdf`: ajustes, recientes, espacios de trabajo, firmas guardadas, claves de IA cifradas y registro de
+auditoría) **se conservan por defecto**: el desinstalador pregunta si quieres borrarlos también (por defecto, No, para no perderlos al reinstalar).
+En silencio (`/S`) se conservan, salvo con `--delete-app-data`. Al **actualizar** nunca se borra nada. Tus PDF jamás se tocan.
+El instalador (`Foliux-PDF-Setup-*.exe`) que descargaste a mano es un archivo tuyo: Windows no permite que un desinstalador borre el
+instalador del que partió, así que bórralo tú si ya no lo necesitas. `scripts\test-uninstaller.ps1` comprueba todo esto (instala en una carpeta
+temporal, apartando y restaurando tus datos reales). Limitación: solo se probó la instalación «solo para mí»; la de «todos los usuarios»
+necesita permisos de administrador y no se pudo verificar de forma automática; la pregunta interactiva sobre los datos tampoco se probó pulsando botones.
 
 ### Actualizaciones de la aplicación
 

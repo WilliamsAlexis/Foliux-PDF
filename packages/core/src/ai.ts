@@ -29,6 +29,23 @@ export type AiModelId = (typeof AI_MODELS)[number]['id'];
 export const AI_MODEL_IDS = AI_MODELS.map((m) => m.id) as [AiModelId, ...AiModelId[]];
 export const DEFAULT_AI_MODEL: AiModelId = 'claude-opus-5-5';
 
+/** Servicios de IA que puede usar el asistente. */
+export const AI_PROVIDERS = ['anthropic', 'gemini'] as const;
+export type AiProvider = (typeof AI_PROVIDERS)[number];
+export const AI_PROVIDER_LABELS: Record<AiProvider, string> = {
+  anthropic: 'Claude (Anthropic)',
+  gemini: 'Gemini (Google AI Studio)',
+};
+
+/** Modelos de Gemini sugeridos (el nombre se puede cambiar a mano: Google los renueva con frecuencia). */
+export const GEMINI_MODEL_SUGGESTIONS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-pro',
+] as const;
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+export const GEMINI_MODEL_PATTERN = /^[A-Za-z0-9._-]{1,80}$/;
+
 /** Mensaje de una conversación con el documento. */
 export const ChatMessageSchema = z.object({
   role: z.enum(['user', 'assistant']),

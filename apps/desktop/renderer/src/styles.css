@@ -139,3 +139,32 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Impresión: solo se imprime el contenedor con las páginas dibujadas (ver lib/share.ts). */
+#foliux-print-root {
+  display: none;
+}
+@media print {
+  body > *:not(#foliux-print-root) {
+    display: none !important;
+  }
+  #foliux-print-root {
+    display: block;
+  }
+  .foliux-print-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    break-after: page;
+    page-break-after: always;
+  }
+  .foliux-print-page img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+  @page {
+    margin: 0;
+  }
+}

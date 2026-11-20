@@ -4,17 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { FULL_PERMISSIONS, validateProtection, type Protection } from '@foliux-pdf/core';
 import { Button } from '@/components/ui/button';
 import { DialogShell, Field, INPUT } from '@/components/ToolDialogs';
-import { useUi } from '@/store/ui';
+import { useUi, type ConvertFormat } from '@/store/ui';
 import { OCR_LANGUAGES, runOcr } from '@/lib/ocr';
-import {
-  exportPdfA,
-  exportToImages,
-  exportToOffice,
-  exportToPresentation,
-  importImages,
-  importOffice,
-  type PdfAOutcome,
-} from '@/lib/convert';
+import { exportPdfA, importImages, importOffice, type PdfAOutcome } from '@/lib/convert';
 import { cancelBatch, runBatch, setBatchFiles, useBatch, type BatchAction } from '@/lib/batch';
 import { notifyError } from '@/lib/notify';
 import { cn } from '@/lib/utils';
@@ -112,8 +104,6 @@ function ConvertDialog() {
   const open = useUi((s) => s.toolDialog === 'convert');
   const setDialog = useUi((s) => s.setToolDialog);
   const [office, setOffice] = useState<boolean | null>(null);
-  const [imageFormat, setImageFormat] = useState<'png' | 'jpeg'>('png');
-  const [dpi, setDpi] = useState(150);
 
   useEffect(() => {
     if (!open) return;
@@ -123,6 +113,11 @@ function ConvertDialog() {
       .then((status) => setOffice(status.libreOffice))
       .catch(() => setOffice(false));
   }, [open]);
+
+  const openOptions = (format: ConvertFormat) => {
+    useUi.getState().setConvertFormat(format);
+    setDialog('convertOptions');
+  };
 
   const run = (action: () => Promise<unknown>) => {
     setDialog(null);
@@ -159,48 +154,33 @@ function ConvertDialog() {
             <Item
               label={t('convert.toWord')}
               hint={t('convert.toWordHint')}
-              onClick={() => run(() => exportToOffice('docx'))}
+              onClick={() => openOptions('docx')}
             />
             <Item
               label={t('convert.toExcel')}
               hint={t('convert.toExcelHint')}
-              onClick={() => run(() => exportToOffice('xlsx'))}
+              onClick={() => openOptions('xlsx')}
             />
             <Item
               label={t('convert.toPowerPoint')}
               hint={t('convert.toPowerPointHint')}
-              onClick={() => run(() => exportToPresentation())}
+              onClick={() => openOptions('pptx')}
             />
-            <div className="flex items-end gap-2 rounded-md border border-border p-3">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">{t('convert.toImages')}</p>
-                <p className="text-xs text-muted-foreground">{t('convert.toImagesHint')}</p>
-              </div>
-              <select
-                aria-label={t('redact.format')}
-                className={cn(INPUT, 'w-24')}
-                value={imageFormat}
-                onChange={(event) => setImageFormat(event.target.value as 'png' | 'jpeg')}
-              >
-                <option value="png">PNG</option>
-                <option value="jpeg">JPEG</option>
-              </select>
-              <select
-                aria-label={t('ocr.resolution')}
-                className={cn(INPUT, 'w-24')}
-                value={dpi}
-                onChange={(event) => setDpi(Number(event.target.value))}
-              >
-                {[96, 150, 200, 300].map((value) => (
-                  <option key={value} value={value}>
-                    {value} ppp
-                  </option>
-                ))}
-              </select>
-              <Button onClick={() => run(() => exportToImages(imageFormat, dpi))}>
-                {t('convert.export')}
-              </Button>
-            </div>
+            <Item
+              label={t('convert.toImages')}
+              hint={t('convert.toImagesHint')}
+              onClick={() => openOptions('images')}
+            />
+            <Item
+              label={t('convert.toText')}
+              hint={t('convert.toTextHint')}
+              onClick={() => openOptions('txt')}
+            />
+            <Item
+              label={t('convert.toHtml')}
+              hint={t('convert.toHtmlHint')}
+              onClick={() => openOptions('html')}
+            />
           </div>
 
           <h3 className="mt-5 mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">

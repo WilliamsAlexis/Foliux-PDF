@@ -1,6 +1,7 @@
 import type { Annotation } from './annotations';
 import type { PageOp } from './page-ops';
 import type { AppSettings, PageWord, PdfFile, RecentFile, SavedFile } from './models';
+import type { PageImage } from './layout';
 import type { FormFieldInfo } from './forms';
 import type { WorkspaceView } from './workspace';
 import type { UpdateInfo, UpdateState } from './updates';
@@ -55,9 +56,14 @@ export interface FoliuxApi {
     removeDocument(id: string, path: string): Promise<WorkspaceView>;
   };
   ai: {
-    status(): Promise<{ configured: boolean; secureStorage: boolean; model: string }>;
-    setKey(key: string): Promise<void>;
-    clearKey(): Promise<void>;
+    status(): Promise<{
+      provider: 'anthropic' | 'gemini';
+      configured: boolean;
+      secureStorage: boolean;
+      model: string;
+    }>;
+    setKey(key: string, provider: 'anthropic' | 'gemini'): Promise<void>;
+    clearKey(provider: 'anthropic' | 'gemini'): Promise<void>;
     cancel(requestId: string): Promise<void>;
     chat(request: {
       requestId: string;
@@ -98,6 +104,8 @@ export interface FoliuxApi {
   };
   openImageDialog(): Promise<{ name: string; format: 'png' | 'jpeg'; data: Uint8Array } | null>;
   pdf: {
+    /** Devuelve el documento con las anotaciones incorporadas (sin guardarlo). */
+    bake(request: { data: Uint8Array; annotations: Annotation[] }): Promise<{ data: Uint8Array }>;
     /** Crea un PDF en blanco con el tamaño y el número de páginas indicados. */
     create(spec: NewDocumentSpec): Promise<{ data: Uint8Array }>;
     /** Guarda el documento incluyendo las anotaciones. Devuelve null si se canceló el diálogo. */
@@ -156,9 +164,24 @@ export interface FoliuxApi {
     /** Texto de las páginas → Word o Excel. */
     toOffice(request: {
       format: 'docx' | 'xlsx';
-      pages: { words: PageWord[] }[];
+      pages: {
+        page?: number;
+        words: PageWord[];
+        width?: number;
+        height?: number;
+        images?: PageImage[];
+      }[];
       suggestedName: string;
     }): Promise<SavedFile | null>;
+    /** Texto de las páginas → .txt o .html. */
+    toText(request: {
+      format: 'txt' | 'html';
+      title: string;
+      pages: { page: number; words: PageWord[] }[];
+      suggestedName: string;
+    }): Promise<SavedFile | null>;
+    /** Abre el programa de correo con un mensaje nuevo. */
+    openMail(request: { subject: string; body: string }): Promise<void>;
     /** Imágenes de las páginas → PowerPoint. */
     toPresentation(request: {
       pages: { image: Uint8Array; width: number; height: number; notes: string }[];

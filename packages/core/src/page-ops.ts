@@ -17,7 +17,33 @@ const HeaderFooterLineSchema = z.object({
   right: z.string().max(300),
 });
 
+const RectInputSchema = z.object({
+  x: z.number().finite(),
+  y: z.number().finite(),
+  width: z.number().finite().min(1),
+  height: z.number().finite().min(1),
+});
+
 export const PageOpSchema = z.discriminatedUnion('type', [
+  /** Recorta una página (o todas con los mismos márgenes). El rectángulo está en unidades de la vista. */
+  z.object({
+    type: z.literal('crop'),
+    page: z.number().int().min(1),
+    rect: RectInputSchema,
+    allPages: z.boolean().default(false),
+  }),
+  /** Añade una zona pulsable: dirección web/correo (solo http, https o mailto) o página del documento. */
+  z.object({
+    type: z.literal('addLink'),
+    page: z.number().int().min(1),
+    rect: RectInputSchema,
+    url: z
+      .string()
+      .max(2000)
+      .regex(/^(https?:\/\/[^\s]+|mailto:[^\s]+)$/i)
+      .optional(),
+    targetPage: z.number().int().min(1).optional(),
+  }),
   z.object({
     type: z.literal('rotate'),
     pages: pageNumbers,

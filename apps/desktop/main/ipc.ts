@@ -1,11 +1,14 @@
 import { existsSync } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join, resolve } from 'node:path';
-import { app, dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import { app, dialog, ipcMain, shell, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import {
   FoliuxError,
+  buildHtmlDocument,
+  buildPlainText,
   ipcContract,
   ipcEvents,
+  type AiProvider,
   type ErrorCode,
   type ILogger,
   type IpcChannel,
@@ -23,7 +26,7 @@ import {
   buildDeckPptx,
   buildDocx,
   buildTablesXlsx,
-  type AiService,
+  type AiAssistant,
   type UpdateManager,
   type WorkspaceService,
   type EncryptedKeyStore,
@@ -68,8 +71,9 @@ export interface IpcDeps {
   /** Cifrado y descifrado de PDFs (qpdf). */
   qpdf: QpdfService;
   /** Asistente de IA (API de Claude) y almacén cifrado de su clave. */
-  ai: AiService;
-  keyStore: EncryptedKeyStore;
+  ai: AiAssistant;
+  /** Una clave cifrada por servicio de IA. */
+  keyStores: Record<AiProvider, EncryptedKeyStore>;
   /** Espacios de trabajo (grupos de documentos por proyecto). */
   workspaces: WorkspaceService;
   /** Actualizaciones de la aplicación. */
@@ -322,6 +326,10 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     },
   );
 
+  handle(deps, 'pdf:bake', async ({ data, annotations }) => ({
+    data: await bakeAnnotations(data, annotations),
+  }));
+
   handle(deps, 'pdf:create', async (spec) => ({ data: await createBlankPdf(spec) }));
 
   handle(deps, 'pdf:transform', ({ data, annotations, op }) =>
@@ -449,6 +457,25 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     const bytes = format === 'docx' ? await buildDocx(pages) : await buildXlsx(pages);
     await writeFile(chosen, bytes);
     return { path: chosen, name: basename(chosen) };
+  });
+
+  handle(deps, 'convert:pdf-to-text', async ({ format, title, pages, suggestedName }, event) => {
+    const filter =
+      format === 'txt'
+        ? { name: 'Texto', extensions: ['txt'] }
+        : { name: 'Página web', extensions: ['html'] };
+    const chosen = await askSaveFile(event, 'Guardar la conversión', suggestedName, filter);
+    if (!chosen) return null;
+    const content = format === 'txt' ? buildPlainText(pages) : buildHtmlDocument(title, pages);
+    await writeFile(chosen, content, 'utf8');
+    return { path: chosen, name: basename(chosen) };
+  });
+
+  // Solo se abre el programa de correo: la dirección la construye este proceso, nunca la interfaz.
+  handle(deps, 'share:mail', async ({ subject, body }) => {
+    await shell.openExternal(
+      `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+    );
   });
 
   handle(deps, 'convert:pdf-to-pptx', async ({ pages, suggestedName }, event) => {
@@ -692,13 +719,18 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     }
   };
 
-  handle(deps, 'ai:status', async () => ({
-    configured: await deps.keyStore.has(),
-    secureStorage: deps.keyStore.secureStorage,
-    model: (await deps.settings.get()).aiModel,
-  }));
-  handle(deps, 'ai:set-key', ({ key }) => deps.keyStore.set(key));
-  handle(deps, 'ai:clear-key', () => deps.keyStore.clear());
+  handle(deps, 'ai:status', async () => {
+    const settings = await deps.settings.get();
+    const store = deps.keyStores[settings.aiProvider];
+    return {
+      provider: settings.aiProvider,
+      configured: await store.has(),
+      secureStorage: store.secureStorage,
+      model: settings.aiProvider === 'gemini' ? settings.geminiModel : settings.aiModel,
+    };
+  });
+  handle(deps, 'ai:set-key', ({ key, provider }) => deps.keyStores[provider].set(key));
+  handle(deps, 'ai:clear-key', ({ provider }) => deps.keyStores[provider].clear());
   handle(deps, 'ai:cancel', ({ requestId }) => {
     aiRequests.get(requestId)?.abort();
   });

@@ -24,6 +24,7 @@ export { inspectMetadata } from './metadata';
 export { listFormFields, mayContainForm } from './forms';
 export { convertToPdfA, type PdfAIssue, type PdfAResult } from './pdfa';
 export { pruneUnreachable } from './prune';
+export { isSafeLinkUrl } from './layout-ops';
 
 const PRODUCER = 'Foliux PDF';
 

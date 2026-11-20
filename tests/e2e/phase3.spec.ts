@@ -63,6 +63,13 @@ async function goToPage(n: number) {
   await input.press('Enter');
 }
 
+/** Abre la acción de la barra (si no lo está ya) y pulsa una de sus herramientas. */
+async function ribbonTool(action: string, tool: string) {
+  const tab = page.getByRole('button', { name: action, exact: true });
+  if ((await tab.getAttribute('aria-expanded')) !== 'true') await tab.click();
+  await page.getByRole('button', { name: tool, exact: true }).click();
+}
+
 test.beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'foliux-e2e3-'));
   pdfPath = join(dir, 'edicion.pdf');
@@ -86,7 +93,7 @@ test.afterAll(async () => {
 });
 
 test('añadir texto: se escribe, queda pendiente y «Aplicar cambios» lo incorpora a la página', async () => {
-  await page.getByRole('button', { name: 'Añadir texto', exact: true }).click();
+  await ribbonTool('Editar', 'Agregar texto');
   const box = await page.locator('.pdf-page').first().boundingBox();
   await page.mouse.click(box!.x + box!.width * 0.25, box!.y + 220);
 
@@ -117,7 +124,7 @@ test('deshacer devuelve el texto a pendiente y rehacer lo vuelve a aplicar', asy
 
 test('editar texto existente: se reescribe y el original queda tapado (no borrado)', async () => {
   await goToPage(1);
-  await page.getByRole('button', { name: 'Editar texto existente' }).click();
+  await ribbonTool('Editar', 'Editar texto');
   const span = pageText(1).locator('span', { hasText: 'Hola Foliux' }).first();
   await span.scrollIntoViewIfNeeded();
   await span.click();
@@ -184,7 +191,7 @@ test('reemplazar una imagen existente con la herramienta de imagen', async () =>
 
   await goToPage(2);
   await mockDialog('open', { canceled: false, filePaths: [imagePath] });
-  await page.getByRole('button', { name: 'Añadir o reemplazar imagen' }).click();
+  await ribbonTool('Editar', 'Agregar imagen');
 
   // La imagen que ya hay en la página se marca para poder reemplazarla.
   const marked = pageText(2)

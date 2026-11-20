@@ -10,6 +10,7 @@ export * from './ai';
 export * from './workspace';
 export * from './updates';
 export * from './new-document';
+export * from './text-export';
 export * from './signing';
 export * from './interfaces';
 export * from './ipc';

@@ -5,6 +5,7 @@ import { startCompare, stepChange } from '@/lib/compare';
 import { flattenFormFields } from '@/lib/forms';
 import { useUpdate } from '@/store/update';
 import { openNewDocumentDialog } from '@/lib/newdoc';
+import { downloadCopy, printDocument, shareByMail } from '@/lib/share';
 import { audioSummary, detectFormFields, extractTablesToExcel, findSensitiveData } from '@/lib/ai';
 import { useCompare } from '@/store/compare';
 import {
@@ -58,6 +59,20 @@ const isPaged = () => hasDoc() && useUi.getState().viewMode !== 'continuous';
 
 export const commands: Command[] = [
   { id: 'file.new', label: 'commands.new', shortcuts: ['mod+n'], run: openNewDocumentDialog },
+  {
+    id: 'file.print',
+    label: 'commands.print',
+    shortcuts: ['mod+p'],
+    enabled: canEditPages,
+    run: printDocument,
+  },
+  { id: 'file.mail', label: 'commands.mail', enabled: canEditPages, run: shareByMail },
+  {
+    id: 'file.download',
+    label: 'commands.download',
+    enabled: canEditPages,
+    run: () => void downloadCopy(),
+  },
   { id: 'file.open', label: 'commands.open', shortcuts: ['mod+o'], run: openPdfDialog },
   {
     id: 'file.close',

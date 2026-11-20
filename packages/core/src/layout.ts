@@ -79,8 +79,19 @@ export function groupLines(words: readonly PageWord[]): TextLine[] {
   });
 }
 
+/** Imagen de una página lista para insertarla en un documento (posición y tamaño en puntos, PNG). */
+export interface PageImage {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  data: Uint8Array;
+}
+
 export interface Paragraph {
   text: string;
+  /** Posición vertical (arriba) de su primera línea: sirve para intercalar imágenes en su sitio. */
+  y: number;
   /** Línea de mayor tamaño que el resto del texto: probablemente un título. */
   heading: boolean;
 }
@@ -121,6 +132,7 @@ export function buildParagraphs(lines: readonly TextLine[]): Paragraph[] {
     const first = group[0]!;
     return {
       text,
+      y: first.y,
       heading: group.length === 1 && first.height >= bodyHeight * 1.25 && text.length <= 120,
     };
   });

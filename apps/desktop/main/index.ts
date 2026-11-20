@@ -17,9 +17,12 @@ import log from 'electron-log/main';
 import { autoUpdater } from 'electron-updater';
 import { ipcEvents, type ILogger, type ThemePreference } from '@foliux-pdf/core';
 import {
+  AiRouter,
   AiService,
   AuditLogService,
   EncryptedKeyStore,
+  GEMINI_KEY_FORMAT,
+  GeminiClient,
   QpdfService,
   UpdateManager,
   WorkspaceService,
@@ -283,15 +286,33 @@ if (!app.requestSingleInstanceLock()) {
           : join(app.getAppPath(), 'resources', 'qpdf', 'qpdf.exe')
         : 'qpdf';
 
-    // Clave de la API de Claude: cifrada con el sistema operativo (en Windows, DPAPI). Solo la usa este proceso.
-    const keyStore = new EncryptedKeyStore(join(app.getPath('userData'), 'ai-key.bin'), {
+    // Claves de las APIs de IA: cifradas con el sistema operativo (en Windows, DPAPI), una por servicio.
+    // Solo las usa este proceso: nunca llegan a la interfaz.
+    const cipher = {
       isAvailable: () => safeStorage.isEncryptionAvailable(),
-      encrypt: (plain) => safeStorage.encryptString(plain),
-      decrypt: (encrypted) => safeStorage.decryptString(Buffer.from(encrypted)),
-    });
-    const ai = new AiService({
-      getKey: () => keyStore.get(),
+      encrypt: (plain: string) => safeStorage.encryptString(plain),
+      decrypt: (encrypted: Uint8Array) => safeStorage.decryptString(Buffer.from(encrypted)),
+    };
+    const keyStores = {
+      anthropic: new EncryptedKeyStore(join(app.getPath('userData'), 'ai-key.bin'), cipher),
+      gemini: new EncryptedKeyStore(
+        join(app.getPath('userData'), 'gemini-key.bin'),
+        cipher,
+        GEMINI_KEY_FORMAT,
+      ),
+    };
+    const claude = new AiService({
+      getKey: () => keyStores.anthropic.get(),
       getModel: async () => (await settings.get()).aiModel,
+    });
+    const gemini = new AiService({
+      getKey: () => keyStores.gemini.get(),
+      getModel: async () => (await settings.get()).geminiModel,
+      createClient: (apiKey) => new GeminiClient(apiKey),
+    });
+    const ai = new AiRouter(async () => (await settings.get()).aiProvider, {
+      anthropic: claude,
+      gemini,
     });
 
     // Actualizaciones: solo en la aplicación instalada. Avisan; descargar e instalar lo decide el usuario.
@@ -307,7 +328,7 @@ if (!app.requestSingleInstanceLock()) {
       settings,
       qpdf: new QpdfService(qpdfPath),
       ai,
-      keyStore,
+      keyStores,
       updates,
       workspaces: new WorkspaceService(join(app.getPath('userData'), 'workspaces.json'), logger),
       audit: new AuditLogService(join(app.getPath('userData'), 'audit-log.jsonl')),

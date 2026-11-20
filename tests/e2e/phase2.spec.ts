@@ -28,6 +28,13 @@ async function openSidebarTab(name: string) {
   await page.getByRole('tab', { name, exact: true }).click();
 }
 
+/** Abre la acción de la barra (si no lo está ya) y pulsa una de sus herramientas. */
+async function ribbonTool(action: string, tool: string) {
+  const tab = page.getByRole('button', { name: action, exact: true });
+  if ((await tab.getAttribute('aria-expanded')) !== 'true') await tab.click();
+  await page.getByRole('button', { name: tool, exact: true }).click();
+}
+
 test.beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'foliux-e2e2-'));
   pdfPath = join(dir, 'editable.pdf');
@@ -86,7 +93,7 @@ test('seleccionar texto muestra la barra y resalta; aparece en la lista y marca 
 });
 
 test('dibujar un rectángulo con la herramienta y moverlo', async () => {
-  await page.getByRole('button', { name: 'Rectángulo' }).click();
+  await ribbonTool('Editar', 'Rectángulo');
   const pageBox = await page.locator('.pdf-page').first().boundingBox();
   expect(pageBox).not.toBeNull();
   // Posiciones cerca del inicio de la página: la página entera es más alta que la ventana.
@@ -108,7 +115,7 @@ test('dibujar un rectángulo con la herramienta y moverlo', async () => {
 });
 
 test('un cuadro de texto se escribe y se guarda su contenido', async () => {
-  await page.getByRole('button', { name: 'Cuadro de texto' }).click();
+  await ribbonTool('Comentar', 'Comentario en texto');
   const pageBox = await page.locator('.pdf-page').first().boundingBox();
   await page.mouse.click(pageBox!.x + pageBox!.width * 0.3, pageBox!.y + 360);
   const editor = page.getByRole('textbox', { name: 'Texto del cuadro' });

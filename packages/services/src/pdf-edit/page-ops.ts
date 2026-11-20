@@ -6,6 +6,7 @@ import { cleanMetadata } from './metadata';
 import { addInvisibleText } from './ocr';
 import { addFormField, deleteFormField, fillForm, flattenForm } from './forms';
 import { pruneUnreachable } from './prune';
+import { addLink, cropPages } from './layout-ops';
 
 /** Abre un PDF con pdf-lib traduciendo los fallos a errores claros para el usuario. */
 export async function loadPdf(data: Uint8Array, name = 'el documento'): Promise<PDFDocument> {
@@ -138,6 +139,12 @@ export async function applyPageOp(
 
     case 'addFormField':
       return addFormField(doc, op.field);
+
+    case 'crop':
+      return cropPages(doc, op);
+
+    case 'addLink':
+      return addLink(doc, op);
 
     case 'addFormFields':
       // Uno tras otro: cada alta ve los campos ya creados (y rechaza nombres repetidos).

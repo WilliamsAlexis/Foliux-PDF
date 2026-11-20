@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { TitleBar } from '@/components/TitleBar';
 import { Toolbar } from '@/components/Toolbar';
-import { AnnotationBar } from '@/components/AnnotationBar';
+import { Ribbon } from '@/components/ribbon/Ribbon';
+import { RibbonDialogs } from '@/components/RibbonDialogs';
 import { ConfirmCloseDialog } from '@/components/ConfirmCloseDialog';
 import { ToolDialogs } from '@/components/ToolDialogs';
 import { ConvertDialogs } from '@/components/ConvertDialogs';
@@ -119,7 +120,7 @@ export function App() {
       <div className="flex h-screen flex-col bg-background text-foreground">
         {!fullscreen && <TitleBar />}
         {!fullscreen && tab && <Toolbar tab={tab} />}
-        {!fullscreen && tab && <AnnotationBar tab={tab} />}
+        {!fullscreen && tab && <Ribbon tab={tab} />}
 
         <div className="flex min-h-0 flex-1">
           {!fullscreen && tab && <Sidebar tab={tab} />}
@@ -176,6 +177,7 @@ export function App() {
       <AiDialogs />
       <UpdateDialog />
       <NewDocumentDialog />
+      <RibbonDialogs />
       <CommandPalette />
       <DropOverlay />
       <Toaster position="bottom-right" richColors closeButton />

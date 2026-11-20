@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import {
   AI_MODEL_IDS,
+  AI_PROVIDERS,
+  GEMINI_MODEL_PATTERN,
   DEFAULT_SETTINGS,
   THEME_PREFERENCES,
   type AppSettings,
@@ -13,6 +15,8 @@ const SettingsSchema = z.object({
   theme: z.enum(THEME_PREFERENCES).catch(DEFAULT_SETTINGS.theme),
   language: z.string().catch(DEFAULT_SETTINGS.language),
   aiModel: z.enum(AI_MODEL_IDS).catch(DEFAULT_SETTINGS.aiModel),
+  aiProvider: z.enum(AI_PROVIDERS).catch(DEFAULT_SETTINGS.aiProvider),
+  geminiModel: z.string().regex(GEMINI_MODEL_PATTERN).catch(DEFAULT_SETTINGS.geminiModel),
   autoCheckUpdates: z.boolean().catch(DEFAULT_SETTINGS.autoCheckUpdates),
 });
 

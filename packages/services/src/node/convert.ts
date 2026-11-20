@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import PptxGenJS from 'pptxgenjs';
-import { Document, HeadingLevel, Packer, PageBreak, Paragraph, TextRun } from 'docx';
+import { AlignmentType, Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } from 'docx';
 import { PDFDocument } from 'pdf-lib';
 import {
   FoliuxError,
@@ -9,31 +9,94 @@ import {
   buildParagraphs,
   buildTable,
   groupLines,
+  type PageImage,
   type PageWord,
 } from '@foliux-pdf/core';
 import { savePdf } from '../pdf-edit/page-ops';
 
 /** Generadores de documentos de Office a partir del texto de un PDF (aproximados: ver layout.ts). */
 
-/** Documento de Word: un párrafo por bloque de texto, los títulos como encabezados y un salto por página. */
-export async function buildDocx(
-  pages: readonly { words: readonly PageWord[] }[],
-): Promise<Uint8Array> {
-  const children: Paragraph[] = [];
-  pages.forEach((page, index) => {
-    if (index > 0) children.push(new Paragraph({ children: [new PageBreak()] }));
-    for (const paragraph of buildParagraphs(groupLines(page.words))) {
-      children.push(
-        paragraph.heading
-          ? new Paragraph({ text: paragraph.text, heading: HeadingLevel.HEADING_2 })
-          : new Paragraph({ children: [new TextRun(paragraph.text)], spacing: { after: 120 } }),
-      );
-    }
+/** Una página para el documento de Word: su texto, su tamaño y las imágenes que se conservan. */
+export interface DocxPage {
+  words: readonly PageWord[];
+  /** Tamaño de la página en puntos; si falta, A4. */
+  width?: number;
+  height?: number;
+  images?: readonly PageImage[];
+}
+
+const MARGIN_PT = 36; // media pulgada
+const twips = (points: number) => Math.round(points * 20);
+
+/** Párrafo con una imagen: se reduce para caber en la página y se alinea según dónde estaba (izquierda, centro o derecha). */
+function imageParagraph(image: PageImage, pageWidth: number): Paragraph {
+  const room = Math.max(50, pageWidth - 2 * MARGIN_PT);
+  const scale = Math.min(1, room / image.width);
+  // La imagen de Word se mide en píxeles a 96 ppp; el PDF, en puntos (72 por pulgada).
+  const width = Math.max(8, Math.round(image.width * scale * (96 / 72)));
+  const height = Math.max(8, Math.round(image.height * scale * (96 / 72)));
+  const center = (image.x + image.width / 2) / pageWidth;
+  return new Paragraph({
+    alignment:
+      center < 0.4 ? AlignmentType.LEFT : center > 0.6 ? AlignmentType.RIGHT : AlignmentType.CENTER,
+    spacing: { before: 80, after: 120 },
+    children: [
+      new ImageRun({
+        type: 'png',
+        data: image.data,
+        transformation: { width, height },
+        altText: { name: 'imagen', title: 'Imagen del PDF', description: 'Imagen del PDF' },
+      }),
+    ],
   });
-  if (children.length === 0) children.push(new Paragraph(''));
+}
+
+/**
+ * Documento de Word. Cada página del PDF es una sección con su mismo tamaño. Los párrafos se reconstruyen a
+ * partir del texto (los títulos, como encabezados) y las imágenes se intercalan en el orden vertical en que
+ * aparecían, no flotando junto al texto.
+ */
+export async function buildDocx(pages: readonly DocxPage[]): Promise<Uint8Array> {
+  const sections = pages.map((page) => {
+    const pageWidth = Math.min(20000, Math.max(144, page.width ?? 595.28));
+    const pageHeight = Math.min(20000, Math.max(144, page.height ?? 841.89));
+
+    const items: { y: number; make: () => Paragraph }[] = [];
+    for (const paragraph of buildParagraphs(groupLines(page.words))) {
+      items.push({
+        y: paragraph.y,
+        make: () =>
+          paragraph.heading
+            ? new Paragraph({ text: paragraph.text, heading: HeadingLevel.HEADING_2 })
+            : new Paragraph({ children: [new TextRun(paragraph.text)], spacing: { after: 120 } }),
+      });
+    }
+    for (const image of page.images ?? []) {
+      items.push({ y: image.y, make: () => imageParagraph(image, pageWidth) });
+    }
+    // Estable: a igual altura, el texto va antes que la imagen.
+    items.sort((p, q) => p.y - q.y);
+    const children = items.map((item) => item.make());
+    if (children.length === 0) children.push(new Paragraph(''));
+
+    return {
+      properties: {
+        page: {
+          size: { width: twips(pageWidth), height: twips(pageHeight) },
+          margin: {
+            top: twips(MARGIN_PT),
+            bottom: twips(MARGIN_PT),
+            left: twips(MARGIN_PT),
+            right: twips(MARGIN_PT),
+          },
+        },
+      },
+      children,
+    };
+  });
   const document = new Document({
     creator: 'Foliux PDF',
-    sections: [{ children }],
+    sections: sections.length > 0 ? sections : [{ properties: {}, children: [new Paragraph('')] }],
   });
   return new Uint8Array(await Packer.toBuffer(document));
 }
@@ -45,16 +108,23 @@ function asCell(text: string): string | number {
   return text;
 }
 
+const EMPTY_PAGE_NOTE =
+  'Esta página no tiene texto que convertir (si es una imagen o un escaneo, prueba antes con el OCR).';
+
 /** Libro de Excel: una hoja por página con la tabla reconstruida (o el texto línea a línea si no hay columnas). */
 export async function buildXlsx(
-  pages: readonly { words: readonly PageWord[] }[],
+  pages: readonly { words: readonly PageWord[]; page?: number }[],
 ): Promise<Uint8Array> {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Foliux PDF';
   pages.forEach((page, index) => {
-    const sheet = workbook.addWorksheet(`Página ${index + 1}`);
-    for (const row of buildTable(groupLines(page.words))) sheet.addRow(row.map(asCell));
-    sheet.columns.forEach((column) => {
+    const sheet = workbook.addWorksheet(`Página ${page.page ?? index + 1}`);
+    const rows = buildTable(groupLines(page.words));
+    for (const row of rows) sheet.addRow(row.map(asCell));
+    // Una página sin texto (una imagen o un escaneo) no daba filas: se deja una nota en vez de una hoja vacía.
+    if (rows.length === 0) sheet.addRow([EMPTY_PAGE_NOTE]);
+    // Una hoja sin columnas definidas devuelve null: se protege para no fallar.
+    (sheet.columns ?? []).forEach((column) => {
       let longest = 8;
       column.eachCell?.({ includeEmpty: false }, (cell) => {
         longest = Math.max(longest, String(cell.value ?? '').length);
@@ -150,7 +220,7 @@ export async function buildTablesXlsx(tables: ExtractedTables['tables']): Promis
     const sheet = workbook.addWorksheet(sheetName(`${table.title} (p. ${table.page})`, taken));
     if (table.headers.length > 0) sheet.addRow(table.headers).font = { bold: true };
     for (const row of table.rows) sheet.addRow(row.map(asCell));
-    sheet.columns.forEach((column) => {
+    (sheet.columns ?? []).forEach((column) => {
       let longest = 8;
       column.eachCell?.({ includeEmpty: false }, (cell) => {
         longest = Math.max(longest, String(cell.value ?? '').length);

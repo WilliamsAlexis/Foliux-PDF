@@ -90,6 +90,8 @@ describe('SettingsService', () => {
       theme: 'system',
       language: 'es',
       aiModel: 'claude-opus-5-5',
+      aiProvider: 'anthropic',
+      geminiModel: 'gemini-2.5-flash',
       autoCheckUpdates: true,
     });
   });
@@ -102,6 +104,8 @@ describe('SettingsService', () => {
       theme: 'dark',
       language: 'es',
       aiModel: 'claude-opus-5-5',
+      aiProvider: 'anthropic',
+      geminiModel: 'gemini-2.5-flash',
       autoCheckUpdates: true,
     });
   });

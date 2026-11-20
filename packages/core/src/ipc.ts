@@ -32,6 +32,8 @@ const AppSettingsSchema = z.object({
   theme: z.enum(THEME_PREFERENCES),
   language: z.string().min(2).max(10),
   aiModel: z.enum(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5']),
+  aiProvider: z.enum(['anthropic', 'gemini']),
+  geminiModel: z.string().regex(/^[A-Za-z0-9._-]{1,80}$/),
   autoCheckUpdates: z.boolean(),
 });
 
@@ -95,6 +97,11 @@ export const ipcContract = {
     }),
     /** null si el usuario canceló el diálogo. */
     response: SavedFileSchema.nullable(),
+  },
+  /** El documento con las anotaciones y el contenido pendiente ya incorporados (para imprimir lo que se ve). */
+  'pdf:bake': {
+    request: z.object({ data: BytesSchema, annotations: AnnotationListSchema }),
+    response: z.object({ data: BytesSchema }),
   },
   /** Crea un PDF en blanco (sin guardarlo: queda como documento nuevo en la interfaz). */
   'pdf:create': { request: NewDocumentSchema, response: z.object({ data: BytesSchema }) },
@@ -181,6 +188,24 @@ export const ipcContract = {
       pages: z
         .array(
           z.object({
+            /** Número de página real (para nombrar las hojas); si falta, el orden. */
+            page: z.number().int().min(1).optional(),
+            /** Tamaño de la página en puntos (Word usa el mismo tamaño). */
+            width: z.number().finite().min(50).max(20000).optional(),
+            height: z.number().finite().min(50).max(20000).optional(),
+            /** Imágenes de la página (solo Word), con su posición en puntos y su contenido en PNG. */
+            images: z
+              .array(
+                z.object({
+                  x: z.number().finite(),
+                  y: z.number().finite(),
+                  width: z.number().finite().min(1),
+                  height: z.number().finite().min(1),
+                  data: BytesSchema,
+                }),
+              )
+              .max(300)
+              .optional(),
             words: z
               .array(
                 z.object({
@@ -199,6 +224,39 @@ export const ipcContract = {
       suggestedName: z.string().max(255),
     }),
     response: SavedFileSchema.nullable(),
+  },
+  /** Texto de las páginas → archivo de texto (.txt) o página web (.html). */
+  'convert:pdf-to-text': {
+    request: z.object({
+      format: z.enum(['txt', 'html']),
+      title: z.string().max(300),
+      pages: z
+        .array(
+          z.object({
+            page: z.number().int().min(1),
+            words: z
+              .array(
+                z.object({
+                  text: z.string().max(300),
+                  x: z.number().finite(),
+                  y: z.number().finite(),
+                  width: z.number().finite().min(0),
+                  height: z.number().finite().min(0),
+                }),
+              )
+              .max(200000),
+          }),
+        )
+        .min(1)
+        .max(5000),
+      suggestedName: z.string().max(255),
+    }),
+    response: SavedFileSchema.nullable(),
+  },
+  /** Abre el programa de correo con un mensaje nuevo (sin adjuntar nada: lo hace el usuario). */
+  'share:mail': {
+    request: z.object({ subject: z.string().max(300), body: z.string().max(2000) }),
+    response: z.void(),
   },
   /** Imágenes de las páginas → presentación de PowerPoint (una diapositiva por página). */
   'convert:pdf-to-pptx': {
@@ -311,14 +369,26 @@ export const ipcContract = {
   'ai:status': {
     request: z.void(),
     response: z.object({
+      /** Servicio que se está usando. */
+      provider: z.enum(['anthropic', 'gemini']),
+      /** ¿Hay clave guardada para ese servicio? */
       configured: z.boolean(),
       /** ¿El sistema ofrece almacenamiento cifrado para la clave? Sin él, no se guarda. */
       secureStorage: z.boolean(),
       model: z.string(),
     }),
   },
-  'ai:set-key': { request: z.object({ key: z.string().min(20).max(400) }), response: z.void() },
-  'ai:clear-key': { request: z.void(), response: z.void() },
+  'ai:set-key': {
+    request: z.object({
+      key: z.string().min(20).max(400),
+      provider: z.enum(['anthropic', 'gemini']),
+    }),
+    response: z.void(),
+  },
+  'ai:clear-key': {
+    request: z.object({ provider: z.enum(['anthropic', 'gemini']) }),
+    response: z.void(),
+  },
   'ai:cancel': { request: z.object({ requestId: z.string().min(1).max(64) }), response: z.void() },
   /** Conversación con el documento; la respuesta llega además troceada por el evento ai-chunk. */
   'ai:chat': {

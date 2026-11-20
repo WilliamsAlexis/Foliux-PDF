@@ -113,7 +113,7 @@ describe('OCR: texto invisible sobre la página', () => {
 });
 
 describe('PDF → Word, Excel y PowerPoint', () => {
-  it('Word: párrafos, títulos y un salto de página entre páginas', async () => {
+  it('Word: párrafos, títulos y una sección (página nueva) por cada página', async () => {
     const docx = await buildDocx([
       { words: [word('Título', 10, 10, 16), word('Primer', 10, 40), word('párrafo', 50, 40)] },
       { words: [word('Segunda', 10, 10), word('página', 60, 10)] },
@@ -123,7 +123,8 @@ describe('PDF → Word, Excel y PowerPoint', () => {
     expect(xml).toContain('Título');
     expect(xml).toContain('Primer párrafo');
     expect(xml).toContain('Segunda página');
-    expect(xml).toContain('w:br w:type="page"');
+    // Cada página es una sección: Word empieza página nueva en cada una
+    expect((xml.match(/<w:sectPr/g) ?? []).length).toBe(2);
     expect(xml).toMatch(/Heading2/); // el título es un encabezado
   });
 

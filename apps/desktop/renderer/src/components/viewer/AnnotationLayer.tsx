@@ -20,6 +20,7 @@ import {
   createTextItem,
   finishTextEdit,
   moveAnnotation,
+  updateAnnotation,
   placeImage,
   selectAnnotation,
 } from '@/lib/edit';
@@ -52,6 +53,8 @@ const DRAW_TOOLS: ReadonlySet<Tool> = new Set([
   'redact',
   'field',
   'signature',
+  'link',
+  'crop',
 ]);
 
 /** Fuentes del navegador que se parecen a las 14 estándar de PDF (así lo que se ve es lo que se guarda). */
@@ -144,6 +147,15 @@ export const AnnotationLayer = memo(function AnnotationLayer({
   const [drag, setDrag] = useState<{ id: string; dx: number; dy: number } | null>(null);
   const gesture = useRef<{ start: AnnotationPoint; points: AnnotationPoint[] } | null>(null);
   const dragStart = useRef<{ id: string; start: AnnotationPoint } | null>(null);
+  /** Cambio de tamaño en curso de una imagen: rectángulo provisional mientras se arrastra una esquina. */
+  const [resize, setResize] = useState<{ id: string; rect: Rect } | null>(null);
+  const resizeStart = useRef<{
+    id: string;
+    anchor: AnnotationPoint;
+    corner: Corner;
+    ratio: number;
+    original: Rect;
+  } | null>(null);
 
   /** Posición del puntero en unidades PDF de esta página. */
   const toUnits = (event: { clientX: number; clientY: number }, clampToPage = false) => {
@@ -280,6 +292,8 @@ export const AnnotationLayer = memo(function AnnotationLayer({
       case 'redact':
         return createAnnotation('redact', pageNumber, { rect: rectFromPoints(start, current) });
       case 'field':
+      case 'link':
+      case 'crop':
         // Solo es la silueta mientras se dibuja; el campo real lo crea el diálogo.
         return createAnnotation('rect', pageNumber, { rect: rectFromPoints(start, current) });
       default:
@@ -372,6 +386,13 @@ export const AnnotationLayer = memo(function AnnotationLayer({
       useUi.getState().setToolDialog('field');
       return;
     }
+    if (tool === 'link' || tool === 'crop') {
+      if (moved < 6) return;
+      useUi.getState().setTool('select');
+      useUi.getState().setZoneDraft({ page: pageNumber, rect: rectFromPoints(current.start, end) });
+      useUi.getState().setToolDialog(tool);
+      return;
+    }
     // Una figura sin tamaño (clic suelto) se descarta.
     if (moved < 3) return;
     const final = buildDraft(tool, current.start, end, current.points);
@@ -419,6 +440,52 @@ export const AnnotationLayer = memo(function AnnotationLayer({
   const selected = selectedId ? annotations.find((a) => a.id === selectedId) : undefined;
   const offsetOf = (a: Annotation) => (drag && drag.id === a.id ? drag : null);
 
+  // --- Cambiar el tamaño de una imagen (conserva la proporción) --------------------------------
+
+  const startResize = (a: Annotation, corner: Corner, event: React.PointerEvent) => {
+    if (a.kind !== 'image') return;
+    event.stopPropagation();
+    event.preventDefault();
+    const r = a.rect;
+    // El ancla es la esquina opuesta a la que se arrastra: se queda quieta.
+    const anchor = {
+      x: corner.includes('w') ? r.x + r.width : r.x,
+      y: corner.includes('n') ? r.y + r.height : r.y,
+    };
+    resizeStart.current = { id: a.id, anchor, corner, ratio: r.width / r.height, original: r };
+    setResize({ id: a.id, rect: r });
+    (event.currentTarget as Element).setPointerCapture(event.pointerId);
+  };
+  const rectForResize = (event: React.PointerEvent): Rect | null => {
+    const current = resizeStart.current;
+    if (!current) return null;
+    const p = toUnits(event, true);
+    const { anchor, corner, ratio } = current;
+    // El ancho sale de la distancia horizontal al ancla; la altura se deduce de la proporción.
+    const maxWidth = corner.includes('w') ? anchor.x : width - anchor.x;
+    const maxHeight = corner.includes('n') ? anchor.y : height - anchor.y;
+    let w = Math.max(12, Math.abs(p.x - anchor.x));
+    w = Math.min(w, maxWidth, maxHeight * ratio);
+    const h = w / ratio;
+    return {
+      x: corner.includes('w') ? anchor.x - w : anchor.x,
+      y: corner.includes('n') ? anchor.y - h : anchor.y,
+      width: w,
+      height: h,
+    };
+  };
+  const moveResize = (event: React.PointerEvent) => {
+    const next = rectForResize(event);
+    if (next && resizeStart.current) setResize({ id: resizeStart.current.id, rect: next });
+  };
+  const endResize = (event: React.PointerEvent) => {
+    const current = resizeStart.current;
+    const next = rectForResize(event);
+    resizeStart.current = null;
+    setResize(null);
+    if (current && next && next.width >= 12) updateAnnotation(tabId, current.id, { rect: next });
+  };
+
   return (
     <div ref={rootRef} className="absolute inset-0" data-annotation-layer>
       {/* Los resaltados se mezclan con la página (multiplicar), como un rotulador de verdad. */}
@@ -460,12 +527,37 @@ export const AnnotationLayer = memo(function AnnotationLayer({
               transform={offset ? `translate(${offset.dx} ${offset.dy})` : undefined}
               opacity={a.id === draft?.id ? 0.85 : undefined}
             >
-              <Shape annotation={a} events={shapeEvents(a)} />
+              <Shape
+                annotation={
+                  resize && resize.id === a.id && a.kind === 'image'
+                    ? { ...a, rect: resize.rect }
+                    : a
+                }
+                events={shapeEvents(a)}
+              />
             </g>
           );
         })}
         {selected && selected.kind !== 'freetext' && selected.kind !== 'text' ? (
-          <SelectionBox annotation={selected} scale={scale} offset={offsetOf(selected)} />
+          <SelectionBox
+            annotation={
+              resize && resize.id === selected.id && selected.kind === 'image'
+                ? { ...selected, rect: resize.rect }
+                : selected
+            }
+            scale={scale}
+            offset={offsetOf(selected)}
+          />
+        ) : null}
+        {selected && selected.kind === 'image' && tool === 'select' ? (
+          <ResizeHandles
+            rect={resize && resize.id === selected.id ? resize.rect : selected.rect}
+            scale={scale}
+            offset={offsetOf(selected)}
+            onStart={(corner, event) => startResize(selected, corner, event)}
+            onMove={moveResize}
+            onEnd={endResize}
+          />
         ) : null}
       </svg>
 
@@ -763,6 +855,57 @@ function Shape({ annotation: a, events }: { annotation: Annotation; events: Shap
       // Se dibujan en HTML (ver más arriba).
       return null;
   }
+}
+
+type Corner = 'nw' | 'ne' | 'sw' | 'se';
+
+/** Tiradores en las cuatro esquinas de una imagen seleccionada (tamaño constante en pantalla). */
+function ResizeHandles({
+  rect,
+  scale,
+  offset,
+  onStart,
+  onMove,
+  onEnd,
+}: {
+  rect: Rect;
+  scale: number;
+  offset: { dx: number; dy: number } | null;
+  onStart: (corner: Corner, event: React.PointerEvent) => void;
+  onMove: (event: React.PointerEvent) => void;
+  onEnd: (event: React.PointerEvent) => void;
+}) {
+  const size = 10 / scale;
+  const x0 = rect.x + (offset?.dx ?? 0);
+  const y0 = rect.y + (offset?.dy ?? 0);
+  const corners: { corner: Corner; x: number; y: number; cursor: string }[] = [
+    { corner: 'nw', x: x0, y: y0, cursor: 'nwse-resize' },
+    { corner: 'ne', x: x0 + rect.width, y: y0, cursor: 'nesw-resize' },
+    { corner: 'sw', x: x0, y: y0 + rect.height, cursor: 'nesw-resize' },
+    { corner: 'se', x: x0 + rect.width, y: y0 + rect.height, cursor: 'nwse-resize' },
+  ];
+  return (
+    <g>
+      {corners.map(({ corner, x, y, cursor }) => (
+        <rect
+          key={corner}
+          data-resize-handle={corner}
+          x={x - size / 2}
+          y={y - size / 2}
+          width={size}
+          height={size}
+          fill="#ffffff"
+          stroke={SELECTION_COLOR}
+          strokeWidth={1.5 / scale}
+          style={{ pointerEvents: 'all', cursor }}
+          onPointerDown={(event) => onStart(corner, event)}
+          onPointerMove={onMove}
+          onPointerUp={onEnd}
+          onPointerCancel={onEnd}
+        />
+      ))}
+    </g>
+  );
 }
 
 /** Contorno punteado de la anotación seleccionada (grosor constante en pantalla). */

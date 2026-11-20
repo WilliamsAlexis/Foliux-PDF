@@ -144,6 +144,12 @@ export function mapAiError(error: unknown): Error {
   return new FoliuxError('AI_ERROR', 'Error inesperado del asistente.', { cause: error });
 }
 
+/** Lo que el resto de la aplicación necesita de un servicio de IA (Claude o Gemini). */
+export type AiAssistant = Pick<
+  AiService,
+  'chat' | 'extractTables' | 'detectFields' | 'findSensitive' | 'makeSlides' | 'audioSummary'
+>;
+
 export class AiService {
   constructor(private readonly deps: AiDeps) {}
 

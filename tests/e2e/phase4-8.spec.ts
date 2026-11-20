@@ -85,7 +85,7 @@ test('redacción: marcar los resultados de una búsqueda y aplicarla borra el te
 test('asistente: sin clave pide configurarla, valida el formato y avisa antes de enviar', async () => {
   await sidebarTab('Asistente de IA');
   await page.getByRole('button', { name: 'Configurar la clave de la API' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Clave de la API de Claude' });
+  const dialog = page.getByRole('dialog', { name: 'Servicio de IA y clave' });
 
   // Una clave con otro formato se rechaza con un mensaje claro y no se guarda.
   await dialog.getByLabel('Clave de la API').fill('esto-no-es-una-clave-de-anthropic');
@@ -127,6 +127,52 @@ test('asistente: el archivo de la clave está cifrado en disco', async () => {
   const onDisk = (await readFile(join(userData, 'ai-key.bin'))).toString('latin1');
   expect(onDisk.length).toBeGreaterThan(20);
   expect(onDisk).not.toContain('sk-ant');
+});
+
+test('asistente: se puede usar Gemini (capa gratuita) con su propia clave, aparte de la de Claude', async () => {
+  await sidebarTab('Asistente de IA');
+  await page.getByText('Acciones con IA').click();
+  await page.getByRole('button', { name: 'Clave y modelo' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Servicio de IA y clave' });
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByRole('combobox', { name: 'Servicio de IA' }).selectOption('gemini');
+  // Aviso de privacidad de la capa gratuita y ayuda para conseguir la clave
+  await expect(dialog.getByRole('note')).toContainText('mejorar sus productos');
+  await expect(dialog).toContainText('aistudio.google.com/apikey');
+
+  // Una clave de Anthropic no vale para Gemini
+  await dialog.getByLabel('Clave de la API').fill('sk-ant-api03-' + 'a'.repeat(40));
+  await dialog.getByRole('button', { name: 'Guardar clave' }).click();
+  await expect(dialog.getByRole('alert')).toContainText('Google AI Studio');
+
+  await dialog.getByLabel('Clave de la API').fill('AIza' + 'b'.repeat(35));
+  await dialog.getByRole('button', { name: 'Guardar clave' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('Clave guardada (cifrada).').last()).toBeVisible();
+
+  // Se guarda cifrada y en un archivo distinto al de Claude
+  const onDisk = (await readFile(join(dir, 'gemini-key.bin'))).toString('latin1');
+  expect(onDisk).not.toContain('AIza');
+  const claudeOnDisk = (await readFile(join(dir, 'ai-key.bin'))).toString('latin1');
+  expect(claudeOnDisk).not.toContain('sk-ant');
+
+  // Al preguntar, el aviso de envío nombra a Gemini
+  const box = page.getByLabel(/Pregunta sobre el documento/);
+  await box.fill('¿De qué trata?');
+  await box.press('Enter');
+  const consent = page.getByRole('dialog', { name: 'Enviar el documento a la IA' });
+  await expect(consent).toContainText('Gemini (Google AI Studio)');
+  await consent.getByRole('button', { name: 'Cancelar' }).click();
+
+  // Se vuelve a Claude para el resto de pruebas
+  await page.getByText('Acciones con IA').click();
+  await page.getByRole('button', { name: 'Clave y modelo' }).click();
+  await page
+    .getByRole('dialog', { name: 'Servicio de IA y clave' })
+    .getByRole('combobox', { name: 'Servicio de IA' })
+    .selectOption('anthropic');
+  await page.keyboard.press('Escape');
 });
 
 test('espacios de trabajo: crear, añadir documentos, quitar y eliminar', async () => {
@@ -186,7 +232,7 @@ test('actualizaciones: el diálogo muestra la versión y avisa de que en desarro
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'Actualizaciones' });
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('Versión instalada: 0.2.0');
+  await expect(dialog).toContainText(/Versión instalada: \d+\.\d+\.\d+/);
   // Sin la app instalada no hay actualizador: se explica y no se ofrece buscar.
   await expect(dialog).toContainText('solo funcionan en la aplicación instalada');
   await expect(dialog.getByRole('button', { name: 'Buscar actualizaciones' })).toHaveCount(0);

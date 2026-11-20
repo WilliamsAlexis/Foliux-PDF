@@ -75,7 +75,7 @@ export function placeSignature(tabId: string, page: number, point: { x: number; 
   const tab = tabOf(tabId);
   if (!pending || !tab) return;
   const size = tab.sizes[page - 1];
-  const width = Math.min(150, (size?.width ?? 200) * 0.4);
+  const width = Math.min(pending.width ?? 150, (size?.width ?? 200) * 0.4);
   const rect: Rect = {
     x: Math.max(0, Math.min(point.x - width / 2, (size?.width ?? 0) - width)),
     y: Math.max(0, point.y - width / pending.ratio / 2),
@@ -86,6 +86,7 @@ export function placeSignature(tabId: string, page: number, point: { x: number; 
   addAnnotations(tabId, [item]);
   useUi.getState().setTool('select');
   useUi.getState().setPendingSignature(null);
+  if (pending.silent) return;
   void window.foliux.audit
     .record({
       action: 'visual-signature',

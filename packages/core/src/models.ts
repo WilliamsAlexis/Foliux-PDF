@@ -1,4 +1,4 @@
-import type { AiModelId } from './ai';
+import type { AiModelId, AiProvider } from './ai';
 
 /** Preferencia de tema: claro, oscuro o automático según el sistema. */
 export const THEME_PREFERENCES = ['light', 'dark', 'system'] as const;
@@ -13,6 +13,10 @@ export interface AppSettings {
   language: string;
   /** Modelo de Claude que usa el asistente. */
   aiModel: AiModelId;
+  /** Servicio de IA que usa el asistente. */
+  aiProvider: AiProvider;
+  /** Modelo de Gemini (cuando el servicio es Gemini). */
+  geminiModel: string;
   /** Buscar actualizaciones al iniciar (solo avisa: descargar e instalar lo decide el usuario). */
   autoCheckUpdates: boolean;
 }
@@ -21,6 +25,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
   language: 'es',
   aiModel: 'claude-opus-5-5',
+  aiProvider: 'anthropic',
+  geminiModel: 'gemini-2.5-flash',
   autoCheckUpdates: true,
 };
 

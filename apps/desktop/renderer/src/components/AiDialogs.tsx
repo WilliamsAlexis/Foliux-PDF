@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AI_MODELS, type AiModelId } from '@foliux-pdf/core';
+import {
+  AI_MODELS,
+  AI_PROVIDERS,
+  AI_PROVIDER_LABELS,
+  GEMINI_MODEL_PATTERN,
+  GEMINI_MODEL_SUGGESTIONS,
+  type AiProvider,
+} from '@foliux-pdf/core';
 import { useAi, type FieldCandidate, type SensitiveCandidate } from '@/store/ai';
 import { DialogShell, Field, INPUT } from '@/components/ToolDialogs';
 import {
   changeModel,
+  changeProvider,
   closeReview,
   createDetectedFields,
   makePresentation,
@@ -25,6 +33,12 @@ function KeyDialog() {
   const [key, setKey] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  const provider: AiProvider = status?.provider ?? 'anthropic';
+  const [geminiModel, setGeminiModel] = useState('');
+
+  useEffect(() => {
+    if (provider === 'gemini') setGeminiModel(status?.model ?? '');
+  }, [provider, status?.model]);
 
   useEffect(() => {
     if (open) {
@@ -41,7 +55,7 @@ function KeyDialog() {
     }
     setWorking(true);
     try {
-      await saveApiKey(key);
+      await saveApiKey(key, status?.provider ?? 'anthropic');
       setOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -61,13 +75,30 @@ function KeyDialog() {
       error={error}
       busy={working}
     >
+      <Field label={t('ai.provider')}>
+        <select
+          className={INPUT}
+          value={provider}
+          onChange={(event) => {
+            setKey('');
+            setError(null);
+            void changeProvider(event.target.value as AiProvider);
+          }}
+        >
+          {AI_PROVIDERS.map((id) => (
+            <option key={id} value={id}>
+              {AI_PROVIDER_LABELS[id]}
+            </option>
+          ))}
+        </select>
+      </Field>
       <Field label={t('ai.keyLabel')} hint={status?.configured ? t('ai.keyConfigured') : undefined}>
         <input
           type="password"
           autoComplete="off"
           spellCheck={false}
           value={key}
-          placeholder="sk-ant-…"
+          placeholder={provider === 'gemini' ? 'AIza…' : 'sk-ant-…'}
           onChange={(event) => setKey(event.target.value)}
           className={INPUT}
         />
@@ -75,26 +106,57 @@ function KeyDialog() {
       {status && !status.secureStorage && (
         <p className="text-xs text-destructive">{t('ai.noSecureStorage')}</p>
       )}
-      <Field label={t('ai.model')} hint={AI_MODELS.find((m) => m.id === status?.model)?.hint}>
-        <select
-          className={INPUT}
-          value={status?.model ?? ''}
-          onChange={(event) => void changeModel(event.target.value as AiModelId)}
-        >
-          {AI_MODELS.map((model) => (
-            <option key={model.id} value={model.id}>
-              {model.label}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <p className="text-xs text-muted-foreground">{t('ai.keyHelp')}</p>
+      {provider === 'gemini' ? (
+        <Field label={t('ai.model')} hint={t('ai.geminiModelHint')}>
+          <input
+            className={INPUT}
+            list="foliux-gemini-models"
+            value={geminiModel}
+            maxLength={80}
+            spellCheck={false}
+            onChange={(event) => setGeminiModel(event.target.value)}
+            onBlur={() => {
+              const value = geminiModel.trim();
+              if (GEMINI_MODEL_PATTERN.test(value) && value !== status?.model) {
+                void changeModel(value);
+              } else setGeminiModel(status?.model ?? '');
+            }}
+          />
+          <datalist id="foliux-gemini-models">
+            {GEMINI_MODEL_SUGGESTIONS.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+        </Field>
+      ) : (
+        <Field label={t('ai.model')} hint={AI_MODELS.find((m) => m.id === status?.model)?.hint}>
+          <select
+            className={INPUT}
+            value={status?.model ?? ''}
+            onChange={(event) => void changeModel(event.target.value)}
+          >
+            {AI_MODELS.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {provider === 'gemini' ? t('ai.geminiKeyHelp') : t('ai.keyHelp')}
+      </p>
+      {provider === 'gemini' && (
+        <p role="note" className="text-xs text-destructive">
+          {t('ai.geminiFreeNote')}
+        </p>
+      )}
       {status?.configured && (
         <button
           type="button"
           className="self-start text-xs text-destructive underline"
           onClick={() => {
-            void removeApiKey().catch((e) => notifyError(t('ai.failed'), e));
+            void removeApiKey(provider).catch((e) => notifyError(t('ai.failed'), e));
           }}
         >
           {t('ai.removeKey')}
@@ -110,6 +172,8 @@ function ConsentDialog() {
   const prompt = useAi((s) => s.consentPrompt);
   const setPrompt = useAi((s) => s.setConsentPrompt);
   const model = useAi((s) => s.status?.model);
+  const provider = useAi((s) => s.status?.provider ?? 'anthropic');
+  const service = AI_PROVIDER_LABELS[provider];
 
   const answer = (accepted: boolean) => {
     prompt?.resolve(accepted);
@@ -125,8 +189,9 @@ function ConsentDialog() {
           ? t('ai.consentWorkspaceDescription', {
               name: prompt.documentName,
               count: prompt.documentCount,
+              service,
             })
-          : t('ai.consentDescription', { name: prompt?.documentName ?? '' })
+          : t('ai.consentDescription', { name: prompt?.documentName ?? '', service })
       }
       onClose={() => answer(false)}
       onSubmit={() => answer(true)}

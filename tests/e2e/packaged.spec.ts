@@ -45,7 +45,7 @@ test('la app empaquetada abre un PDF, trae qpdf y cifra la clave de la IA', asyn
     // El almacén cifrado de la clave funciona en la app empaquetada.
     await page.getByRole('tab', { name: 'Asistente de IA', exact: true }).click();
     await page.getByRole('button', { name: 'Configurar la clave de la API' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Clave de la API de Claude' });
+    const dialog = page.getByRole('dialog', { name: 'Servicio de IA y clave' });
     await dialog.getByLabel('Clave de la API').fill(`sk-ant-api03-${'b'.repeat(40)}`);
     await dialog.getByRole('button', { name: 'Guardar clave' }).click();
     await expect(page.getByText('Clave guardada (cifrada).')).toBeVisible();
@@ -55,7 +55,7 @@ test('la app empaquetada abre un PDF, trae qpdf y cifra la clave de la IA', asyn
     await page.getByPlaceholder(/Escribe un comando/).fill('actualizaciones');
     await page.keyboard.press('Enter');
     const updates = page.getByRole('dialog', { name: 'Actualizaciones' });
-    await expect(updates).toContainText('Versión instalada: 0.2.0');
+    await expect(updates).toContainText(/Versión instalada: \d+\.\d+\.\d+/);
     await updates.getByRole('button', { name: 'Buscar actualizaciones' }).click();
     await expect(updates.getByRole('status')).toContainText(
       /al día|versión nueva|No se pudo conectar|Todavía no hay una versión publicada|No se pudo completar/,

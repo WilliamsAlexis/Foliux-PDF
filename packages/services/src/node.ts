@@ -15,14 +15,34 @@ export {
 export { AuditLogService, auditToCsv, verifyChain, hashEntry, sha256 } from './node/audit-log';
 export {
   buildDocx,
+  type DocxPage,
   buildXlsx,
   buildPptx,
   buildTablesXlsx,
   buildDeckPptx,
   imagesToPdf,
 } from './node/convert';
-export { EncryptedKeyStore, type KeyCipher } from './node/key-store';
+export {
+  ANTHROPIC_KEY_FORMAT,
+  EncryptedKeyStore,
+  GEMINI_KEY_FORMAT,
+  type KeyCipher,
+  type KeyFormat,
+} from './node/key-store';
 export { convertOfficeToPdf, findLibreOffice, OFFICE_EXTENSIONS } from './node/office';
-export { AiService, mapAiError, type AiClientLike, type AiUsage } from './node/ai';
+export {
+  AiService,
+  mapAiError,
+  type AiAssistant,
+  type AiClientLike,
+  type AiUsage,
+} from './node/ai';
+export { AiRouter } from './node/ai-router';
+export {
+  GeminiClient,
+  buildGeminiRequest,
+  mapGeminiHttpError,
+  toGeminiSchema,
+} from './node/gemini-client';
 export { WorkspaceService } from './node/workspace-service';
 export { UpdateManager, describeUpdateError, type UpdaterLike } from './node/update-manager';

@@ -32,10 +32,18 @@ export type ToolDialog =
   | 'pdfa'
   | 'batch'
   | 'newDocument'
+  | 'link'
+  | 'crop'
+  | 'convertOptions'
+  | 'stamp'
+  | 'initials'
   | null;
 
 /** Herramienta activa: seleccionar/leer o crear un tipo de anotación. */
-export type Tool = 'select' | 'edittext' | 'field' | 'signature' | AnnotationKind;
+export type Tool = 'select' | 'edittext' | 'field' | 'signature' | 'link' | 'crop' | AnnotationKind;
+
+/** Formatos a los que se puede exportar el documento (cada uno abre su cuadro de opciones). */
+export type ConvertFormat = 'docx' | 'xlsx' | 'pptx' | 'images' | 'txt' | 'html';
 
 interface UiState {
   sidebarOpen: boolean;
@@ -66,12 +74,30 @@ interface UiState {
     page: number;
     rect: { x: number; y: number; width: number; height: number };
   } | null;
+  /** Zona dibujada para un enlace o un recorte (espera a que se elijan sus datos). */
+  zoneDraft: {
+    page: number;
+    rect: { x: number; y: number; width: number; height: number };
+  } | null;
+  /** Formato elegido en Convertir (para el cuadro de opciones). */
+  convertFormat: ConvertFormat;
   /** Firma visual elegida que se colocará al pulsar sobre la página. */
-  pendingSignature: { src: string; format: 'png' | 'jpeg'; ratio: number; name: string } | null;
+  pendingSignature: {
+    src: string;
+    format: 'png' | 'jpeg';
+    ratio: number;
+    name: string;
+    /** Ancho inicial al colocarla (unidades PDF); por defecto, el de una firma. */
+    width?: number;
+    /** No anotar la colocación en el registro de auditoría (sellos y fechas no son firmas). */
+    silent?: boolean;
+  } | null;
 
   setPasswordPrompt: (prompt: { path: string; invalid: boolean } | null) => void;
   setSignatureWarning: (tabId: string | null) => void;
   setFieldDraft: (draft: UiFieldDraft) => void;
+  setZoneDraft: (draft: UiFieldDraft) => void;
+  setConvertFormat: (format: ConvertFormat) => void;
   setPendingSignature: (signature: UiPendingSignature) => void;
   setToolDialog: (dialog: ToolDialog) => void;
   setTool: (tool: Tool) => void;
@@ -100,6 +126,8 @@ type UiPendingSignature = {
   format: 'png' | 'jpeg';
   ratio: number;
   name: string;
+  width?: number;
+  silent?: boolean;
 } | null;
 
 /** Estado de la interfaz. Solo el modo de lectura y la barra lateral se recuerdan entre sesiones. */
@@ -124,11 +152,15 @@ export const useUi = create<UiState>()(
       passwordPrompt: null,
       signatureWarning: null,
       fieldDraft: null,
+      zoneDraft: null,
+      convertFormat: 'docx',
       pendingSignature: null,
 
       setPasswordPrompt: (passwordPrompt) => set({ passwordPrompt }),
       setSignatureWarning: (signatureWarning) => set({ signatureWarning }),
       setFieldDraft: (fieldDraft) => set({ fieldDraft }),
+      setZoneDraft: (zoneDraft) => set({ zoneDraft }),
+      setConvertFormat: (convertFormat) => set({ convertFormat }),
       setPendingSignature: (pendingSignature) => set({ pendingSignature }),
       setToolDialog: (toolDialog) => set({ toolDialog }),
       setTool: (tool) => set({ tool, editingAnnotationId: null }),
@@ -149,10 +181,19 @@ export const useUi = create<UiState>()(
     }),
     {
       name: 'foliux-ui',
+      // v1: «Doble página» deja de recordarse entre sesiones (abría los documentos con dos hojas una al lado de
+      // otra sin que se notara por qué). Quien lo tuviera guardado vuelve al modo continuo: una hoja en columna
+      // y, al desplazarse, aparece la siguiente.
+      version: 1,
+      migrate: (persisted) => {
+        const state = (persisted ?? {}) as { viewMode?: string };
+        return state.viewMode === 'double' ? { ...state, viewMode: 'continuous' } : state;
+      },
       partialize: (s) => ({
         sidebarOpen: s.sidebarOpen,
         sidebarTab: s.sidebarTab,
-        viewMode: s.viewMode,
+        // «Doble página» es un modo puntual: al reabrir se vuelve a una sola hoja en columna.
+        viewMode: s.viewMode === 'double' ? 'continuous' : s.viewMode,
       }),
     },
   ),

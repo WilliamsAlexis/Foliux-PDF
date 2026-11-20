@@ -45,8 +45,8 @@ describe('buildParagraphs', () => {
       word('más', 10, 52, 8),
     ]);
     const paragraphs = buildParagraphs(lines);
-    expect(paragraphs[0]).toEqual({ text: 'Capítulo', heading: true });
-    expect(paragraphs[1]).toEqual({ text: 'Texto normal más', heading: false });
+    expect(paragraphs[0]).toMatchObject({ text: 'Capítulo', heading: true, y: 10 });
+    expect(paragraphs[1]).toMatchObject({ text: 'Texto normal más', heading: false, y: 32 });
   });
 
   it('une una palabra partida con guion al final de línea', () => {

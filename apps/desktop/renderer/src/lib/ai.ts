@@ -8,6 +8,7 @@ import {
   locatePhrase,
   normalizeForMatch,
   type AiModelId,
+  type AiProvider,
   type ChatMessage,
   type NewFormField,
   type PageWord,
@@ -42,21 +43,35 @@ export async function refreshAiStatus(): Promise<void> {
   }
 }
 
-export async function saveApiKey(key: string): Promise<void> {
-  await window.foliux.ai.setKey(key);
+export async function saveApiKey(key: string, provider: AiProvider): Promise<void> {
+  await window.foliux.ai.setKey(key, provider);
   await refreshAiStatus();
   toast.success(i18n.t('ai.keySaved'));
 }
 
-export async function removeApiKey(): Promise<void> {
-  await window.foliux.ai.clearKey();
+export async function removeApiKey(provider: AiProvider): Promise<void> {
+  await window.foliux.ai.clearKey(provider);
   await refreshAiStatus();
   toast.success(i18n.t('ai.keyRemoved'));
 }
 
-export async function changeModel(model: AiModelId): Promise<void> {
+/** Cambia el modelo del servicio en uso (Claude o Gemini). */
+export async function changeModel(model: string): Promise<void> {
   try {
-    await window.foliux.settings.update({ aiModel: model as AiModelId });
+    const provider = useAi.getState().status?.provider ?? 'anthropic';
+    await window.foliux.settings.update(
+      provider === 'gemini' ? { geminiModel: model } : { aiModel: model as AiModelId },
+    );
+    await refreshAiStatus();
+  } catch (error) {
+    notifyError(i18n.t('ai.failed'), error);
+  }
+}
+
+/** Cambia el servicio de IA (Claude o Gemini). */
+export async function changeProvider(provider: AiProvider): Promise<void> {
+  try {
+    await window.foliux.settings.update({ aiProvider: provider });
     await refreshAiStatus();
   } catch (error) {
     notifyError(i18n.t('ai.failed'), error);

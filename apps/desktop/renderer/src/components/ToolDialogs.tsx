@@ -124,7 +124,7 @@ export function DialogShell({
 }
 
 /** Elegir a qué páginas se aplica algo: todas, impares, pares o un rango escrito. */
-function PagesChooser({
+export function PagesChooser({
   value,
   onChange,
 }: {
@@ -165,11 +165,12 @@ function PagesChooser({
   );
 }
 
-type PagesValue = { kind: 'all' | 'odd' | 'even' | 'custom'; custom: string };
-const pagesSpec = (value: PagesValue) => (value.kind === 'custom' ? value.custom : value.kind);
+export type PagesValue = { kind: 'all' | 'odd' | 'even' | 'custom'; custom: string };
+export const pagesSpec = (value: PagesValue) =>
+  value.kind === 'custom' ? value.custom : value.kind;
 
 /** Valida el rango antes de enviarlo (así el error sale en el propio diálogo). */
-function checkPages(value: PagesValue, total: number): string | null {
+export function checkPages(value: PagesValue, total: number): string | null {
   try {
     if (parsePageRange(pagesSpec(value), total).length === 0) return 'empty';
     return null;
